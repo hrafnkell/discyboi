@@ -1,0 +1,6 @@
+board:
+  name: discyboi
+  full_name: discyboi v3 (Fanstel BC15M / nRF54L15)
+  vendor: discyboi
+  socs:
+    - name: nrf54l15

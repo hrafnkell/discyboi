@@ -1,0 +1,15 @@
+# KiCad
+*.lck
+*-backups/
+.history/
+fp-info-cache
+*.kicad_prl
+# generator / router intermediates
+__pycache__/
+*.dsn
+*.ses
+freerouting*.log
+fail.json
+# editors / OS
+.DS_Store
+*.swp

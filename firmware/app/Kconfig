@@ -1,0 +1,28 @@
+# discyboi application options
+
+menu "discyboi"
+
+choice DISCY_BATTERY
+	prompt "Battery type (for the battery-level curve)"
+	default DISCY_BATTERY_AUTO
+
+config DISCY_BATTERY_AUTO
+	bool "Detect: LiPo once VBAT has been above 3.45 V, otherwise coin cell"
+	help
+	  A CR2032 never reads above ~3.3 V, a LiPo above 3.45 V holds
+	  almost all of its charge. The board switches to the LiPo curve
+	  the first time VBAT is seen above the threshold and stays there.
+	  A LiPo connected nearly flat reads as a coin cell until it has
+	  been charged.
+
+config DISCY_BATTERY_COIN
+	bool "CR2032 / LIR2032 coin cell"
+
+config DISCY_BATTERY_LIPO
+	bool "1S LiPo"
+
+endchoice
+
+endmenu
+
+source "Kconfig.zephyr"

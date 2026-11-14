@@ -1,0 +1,6 @@
+# west workspace (fetched by build.sh)
+.west/
+zephyr/
+modules/
+build/
+test/test_analysis

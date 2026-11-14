@@ -1,0 +1,18 @@
+description: |
+  ST LSM6DSV320X 6-axis IMU with high-g accelerometer, driven directly by the
+  discyboi application (not a Zephyr sensor driver).
+
+compatible: "discyboi,lsm6dsv320x"
+
+include: spi-device.yaml
+
+properties:
+  int1-gpios:
+    type: phandle-array
+    required: true
+  int2-gpios:
+    type: phandle-array
+  radius-um:
+    type: int
+    required: true
+    description: Distance from the disc's spin axis in micrometres.

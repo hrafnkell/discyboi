@@ -1,0 +1,18 @@
+CONFIG_GPIO=y
+CONFIG_ARM_MPU=y
+CONFIG_HW_STACK_PROTECTION=y
+CONFIG_NULL_POINTER_EXCEPTION_DETECTION_NONE=y
+CONFIG_CACHE_MANAGEMENT=y
+CONFIG_EXTERNAL_CACHE=y
+CONFIG_NRF_GRTC_START_SYSCOUNTER=y
+
+# No UART is broken out: console and logs go over RTT (SWD).
+CONFIG_SERIAL=n
+CONFIG_CONSOLE=y
+CONFIG_UART_CONSOLE=n
+CONFIG_USE_SEGGER_RTT=y
+CONFIG_RTT_CONSOLE=y
+
+# TODO(bring-up): confirm whether the BC15M has a 32.768 kHz crystal. Until then use the
+# internal RC oscillator (calibrated), which works either way at a small power cost.
+CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC=y

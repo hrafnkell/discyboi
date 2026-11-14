@@ -1,0 +1,131 @@
+/*
+ * discyboi v3: Fanstel BC15M (nRF54L15) + 2x LSM6DSV320X on SPIM00.
+ * Pin assignments follow hardware v3 gen/design.py (see ../../../../../v3/README.md).
+ */
+/dts-v1/;
+
+#include <nordic/nrf54l15_cpuapp.dtsi>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include "discyboi_nrf54l15_cpuapp-pinctrl.dtsi"
+
+/ {
+	model = "discyboi v3";
+	compatible = "discyboi,discyboi-nrf54l15-cpuapp";
+
+	chosen {
+		zephyr,code-partition = &slot0_partition;
+		zephyr,sram = &cpuapp_sram;
+		zephyr,flash-controller = &rram_controller;
+		zephyr,flash = &cpuapp_rram;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led_green: led_0 {
+			gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;  /* A5 / P2.09 -> R5 -> D1 */
+			label = "Status LED";
+		};
+	};
+
+	aliases {
+		led0 = &led_green;
+	};
+
+	zephyr,user {
+		/* VBAT through a 10M/10M divider (+100 nF) -> P1.06 / AIN2 */
+		io-channels = <&adc 0>;
+	};
+};
+
+&cpuapp_sram {
+	status = "okay";
+};
+
+/* TODO(bring-up): check whether the BC15M fits the DC/DC inductor. Without it the
+ * main regulator must stay in LDO mode (the default here). */
+&regulators {
+	status = "okay";
+};
+
+&grtc {
+	owned-channels = <0 1 2 3 4 5 6 7 8 9 10 11>;
+	child-owned-channels = <3 4 7 8 9 10 11>;
+	status = "okay";
+};
+
+&cpuapp_rram {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		/* Same layout as the nRF54L15 DK, leaving room for MCUboot + BLE DFU later. */
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x0 DT_SIZE_K(64)>;
+		};
+		slot0_partition: partition@10000 {
+			label = "image-0";
+			reg = <0x10000 DT_SIZE_K(648)>;
+		};
+		slot1_partition: partition@b2000 {
+			label = "image-1";
+			reg = <0xb2000 DT_SIZE_K(648)>;
+		};
+		storage_partition: partition@154000 {
+			label = "storage";
+			reg = <0x154000 DT_SIZE_K(68)>;
+		};
+	};
+};
+
+&gpio0 { status = "okay"; };
+&gpio1 { status = "okay"; };
+&gpio2 { status = "okay"; };
+&gpiote20 { status = "okay"; };   /* P1 interrupts */
+&gpiote30 { status = "okay"; };   /* P0 interrupts */
+&radio { status = "okay"; };
+&temp { status = "okay"; };
+&clock { status = "okay"; };
+
+&spi00 {
+	status = "okay";
+	pinctrl-0 = <&spi00_default>;
+	pinctrl-1 = <&spi00_sleep>;
+	pinctrl-names = "default", "sleep";
+	cs-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>,   /* F2 / P2.06 IMU_CS (U5, centre) */
+		   <&gpio2 5 GPIO_ACTIVE_LOW>;   /* A6 / P2.05 ACC_CS (U3, r = 9 mm) */
+
+	imu_centre: imu@0 {
+		compatible = "discyboi,lsm6dsv320x";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+		int1-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;   /* A2 / P0.00 */
+		int2-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;   /* B1 / P1.08 */
+		radius-um = <0>;
+	};
+
+	imu_rim: imu@1 {
+		compatible = "discyboi,lsm6dsv320x";
+		reg = <1>;
+		spi-max-frequency = <8000000>;
+		int1-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;   /* A1 / P0.01 */
+		int2-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;  /* D1 / P1.12 */
+		radius-um = <9000>;
+	};
+};
+
+&adc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_4";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>;
+		zephyr,input-positive = <NRF_SAADC_AIN2>;  /* P1.06 */
+		zephyr,resolution = <12>;
+		zephyr,oversampling = <4>;
+	};
+};

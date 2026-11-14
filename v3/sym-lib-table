@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "discyboi")(type "KiCad")(uri "${KIPRJMOD}/discyboi.kicad_sym")(options "")(descr "discyboi custom symbols"))
+)

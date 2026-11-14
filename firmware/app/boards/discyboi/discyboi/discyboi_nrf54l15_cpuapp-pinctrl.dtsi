@@ -1,0 +1,19 @@
+&pinctrl {
+	/* SPIM00 must use its dedicated port-2 pins. */
+	spi00_default: spi00_default {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 2, 1)>,    /* C6 */
+				<NRF_PSEL(SPIM_MOSI, 2, 2)>,   /* D6 */
+				<NRF_PSEL(SPIM_MISO, 2, 4)>;   /* F5 */
+		};
+	};
+
+	spi00_sleep: spi00_sleep {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 2, 1)>,
+				<NRF_PSEL(SPIM_MOSI, 2, 2)>,
+				<NRF_PSEL(SPIM_MISO, 2, 4)>;
+			low-power-enable;
+		};
+	};
+};
