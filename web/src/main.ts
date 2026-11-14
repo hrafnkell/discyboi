@@ -2,16 +2,19 @@ import './style.css';
 import * as THREE from 'three';
 import type { ThrowResult } from './ble/protocol';
 import { CAM_MODES, CameraRig, type CamMode } from './scene/cameras';
+import { updateLabels } from './scene/labels';
 import { FlightView } from './scene/playback';
 import { ReleasePreview } from './scene/preview';
 import { practiceField, World } from './scene/world';
 import { convertResult } from './sim/convert';
 import { simulate } from './sim/flight';
 import type { DiscSpec, FlightResult } from './sim/types';
+import { discThrow } from './store/record';
 import { loadSettings, saveSettings, summarize, ThrowStore, type ThrowRecord } from './store/throws';
+import { AccountPanel } from './ui/accountPanel';
 import { DevicePanel } from './ui/devicePanel';
 import { DiscPicker } from './ui/discPicker';
-import { h, section, segmented, slider } from './ui/dom';
+import { fmtDist, h, section, segmented, slider } from './ui/dom';
 import { HistoryPanel } from './ui/history';
 import { StatsBar } from './ui/stats';
 import { ThrowPanel } from './ui/throwPanel';
@@ -38,6 +41,7 @@ const world = new World(scene, renderer);
 const hole = () => practiceField(settings.basketDist);
 world.setHole(hole());
 const view = new FlightView(scene);
+view.fmt = (m) => fmtDist(m, settings.units);
 const rig = new CameraRig(renderer.domElement);
 
 // ---------------------------------------------------------------- UI
@@ -65,6 +69,7 @@ const ghostCache = new Map<string, FlightResult>();
 const history = new HistoryPanel(store, () => settings, (r) => replay(r), () => refreshGhosts());
 
 const device = new DevicePanel(fake, (r) => onDiscThrow(r), toast);
+const account = new AccountPanel(store, toast);
 
 const camSeg = segmented<CamMode>(CAM_MODES, rig.mode, (m) => rig.setMode(m));
 
@@ -72,6 +77,7 @@ const unitsSeg = segmented<'m' | 'ft'>([{ id: 'm', label: 'm' }, { id: 'ft', lab
   settings.units = u;
   saveSettings(settings);
   stats.show(view.current, u);
+  view.refreshLabel();
   history.render();
 });
 const mountSeg = segmented<'faceUp' | 'faceDown'>(
@@ -112,7 +118,8 @@ const leftToggle = h('button.paneltoggle.left', { type: 'button', 'aria-label': 
 const rightToggle = h('button.paneltoggle.right', { type: 'button', 'aria-label': 'Toggle history', onclick: () => document.body.classList.toggle('hide-right') }, '⟲');
 
 document.body.append(
-  h('header.topbar', {}, leftToggle, h('div.brand', {}, h('span.logo'), 'discyboi', h('small', {}, fake ? 'flight lab · fake disc' : 'flight lab')), camSeg.el, device.el, rightToggle),
+  h('header.topbar', {}, leftToggle, h('div.brand', {}, h('span.logo'), 'discyboi', h('small', {}, fake ? 'flight lab · fake disc' : 'flight lab')),
+    h('a.ghostbtn.navlink', { href: `./throws.html${fake ? '?fake=1' : ''}`, title: 'Throw history, stats and compare' }, 'Throws →'), camSeg.el, device.el, account.el, rightToggle),
   h('aside.panel.leftpanel', {}, picker.el, panel.el),
   h('aside.panel.rightpanel', {}, history.el, settingsCard),
   h('div.bottom', {}, stats.el, playbar),
@@ -146,7 +153,10 @@ function doThrow() {
 function onDiscThrow(r: ThrowResult) {
   const c = convertResult(r, { hand: panel.params.hand, mount: settings.mount });
   if (!c.speedValid) {
-    toast(`Throw #${r.throwId}: no valid release speed, not simulated`, 'err');
+    // Keep the release angles for the history page, but there's nothing to fly.
+    const t = discThrow(r, picker.get(), { hand: panel.params.hand, mount: settings.mount });
+    store.add(t.rec);
+    toast(`Throw #${r.throwId}: no valid release speed, angles recorded but not simulated`, 'err');
     return;
   }
   panel.set({ ...c.params, headingDeg: 0 });
@@ -160,6 +170,10 @@ function onDiscThrow(r: ThrowResult) {
 }
 
 function replay(r: ThrowRecord) {
+  if (r.noSim) {
+    toast('That throw has no valid speed, so there is no flight to show', 'err');
+    return;
+  }
   panel.set(r.params);
   updatePreview();
   const flight = ghostCache.get(r.id) ?? simulate(r.params, r.disc);
@@ -229,6 +243,7 @@ renderer.setAnimationLoop(() => {
   if (pose) stats.live(pose.vel.length());
   playBtn.textContent = view.playing ? '❚❚' : '▶';
   if (view.duration > 0 && document.activeElement !== scrub) scrub.value = String(view.t / view.duration);
+  updateLabels(rig.camera);
   renderer.render(scene, rig.camera);
 });
 
@@ -239,4 +254,14 @@ updatePreview();
   const f = simulate(panel.current(), disc);
   play(f, disc);
   view.playing = false;
+}
+// Opened from the throws page with ?throw=<id>: replay it.
+{
+  const id = new URLSearchParams(location.search).get('throw');
+  const r = id ? store.get(id) : undefined;
+  if (r) {
+    history.selected = r.id;
+    history.render();
+    replay(r);
+  }
 }

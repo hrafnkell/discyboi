@@ -1,15 +1,18 @@
 # discyboi flight lab (web)
 
-A three.js app that simulates and animates disc golf flights. You can enter the release parameters by hand, or receive them from the discyboi hardware over Web Bluetooth. Throws are kept in a local history.
+A three.js app that simulates and animates disc golf flights. You can enter the release parameters by hand, or receive them from the discyboi hardware over Web Bluetooth. Throws are kept in this browser, or in an account on the discyboi server.
 
 ```sh
 bun install
-bun run dev      # http://localhost:5173        (?fake=1 for a simulated disc)
+bun run server   # accounts + throw history API on :8787 (optional; SQLite in data/)
+bun run dev      # http://localhost:5173        (?fake=1 for a simulated disc; proxies /api to :8787)
 bun test         # protocol, conversion and flight-model tests
 bun run build    # type-check + production build in dist/
 ```
 
-Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over https or localhost. Firefox and iOS Safari don't support it.
+The dev server listens on all interfaces, so you can open it from another device at `http://<this machine's IP>:5173`. Vite prints the network URLs on startup.
+
+Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over https or localhost. Firefox and iOS Safari don't support it. Over a plain-http LAN address the 3D view works, but *Connect disc* doesn't: use an https tunnel or `localhost` for that.
 
 ## Using it
 
@@ -21,7 +24,10 @@ Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over http
   - The panel shows the resulting angle of attack (nose − launch). Slightly negative means nose down, which is good.
 - **Aim and wind:** aim left/right; wind speed and the direction it comes from.
 - **Keys:** `Space` throws, `R` replays, `1`–`5` switch camera (chase, tee, side, top, free).
-- **Free camera:** orbits the disc and follows it in flight. Drag to rotate, scroll or pinch to zoom, right-drag to pan.
+- **Free camera:** orbits the disc and follows it in flight. Left drag rotates around the disc, right drag (or two-finger drag) pans, scroll or pinch zooms. Switching to Free or making a new throw re-centres on the disc.
+- **Chase, side and top cameras:** scroll or pinch to zoom in or out; each view remembers its own zoom.
+- **Distance markers:** rings every 25 m, and ticks every 5 m along the centre line with a label every 25 m. Labels keep a minimum on-screen size when you zoom out.
+- **Landing marker:** shows the flight (carry) distance, the skip/slide after landing and the total. A red dot marks where the disc stopped.
 - **History:**
   - Click a throw to replay it. Tick the box to keep its path on screen as a ghost.
   - Type the *actual* distance after walking to the disc. These measurements are what will be used to calibrate the model against reality later.
@@ -29,6 +35,47 @@ Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over http
 - **Disc connection:** *Connect disc* subscribes to the Throw and Status characteristics. Each throw is converted, simulated and added to the history automatically.
   - Set the board mount (face up or face down in the disc). It flips the spin direction.
   - The thrower's hand comes from the Release panel. Backhand vs forehand is inferred from the spin direction.
+
+## Throws page (`throws.html`)
+
+A separate page for reviewing throws, reached from **Throws →** in the flight lab's top bar. It doesn't need WebGL, so it also works on phones. It suits field work, where the release numbers matter more than the 3D flight.
+
+- **Live:** it updates as throws arrive. You can connect the disc on this page, and throws recorded in a flight-lab tab also show up straight away (the tabs share localStorage).
+- **Recording:** the disc, hand and board mount used for throws from the disc. *Follow latest* opens each new throw in the detail view. *Speak* reads out each new throw: the metrics you've set targets for, otherwise speed, nose and hyzer.
+- **Latest throw:** big tiles for speed, spin, hyzer, nose, launch, angle of attack, wobble and simulated distance, each with the difference from the average of the other throws in range.
+- **Range:** *Session* (since you pressed *New session*), today, 7 days or all.
+- **Trend:** one metric over the throws in range. Dashed line is the mean, the shaded band is the target. Click a dot to open that throw.
+- **Throws table:** click a row for its details. Tick up to 6 to compare.
+- **Stats:** mean, spread (standard deviation) and range per metric, with an optional target min/max. Targets colour the tiles and table cells and count hits ("4/9 on target").
+- **Detail:** every number, the disc's flags (angles measured or estimated, spin source, landing), actual distance and a note, plus the simulated path from above and from the side. *Open in flight lab* replays it in 3D (`index.html?throw=<id>`).
+- **Compare:** throws side by side with differences against the first one ticked (A), and their paths overlaid.
+- **Import/Export:** JSON. Import merges by throw id, so importing a file twice doesn't duplicate.
+
+Throws from the disc without a valid speed are kept (angles only) and marked as not simulated.
+
+## Accounts and the server (`server/`)
+
+Without an account, or with no server running, throws are saved in the browser's localStorage: the newest 500, on that device only. **Sign in** (top bar, both pages) switches the history to your account on the server:
+
+- **Bigger history:** 20,000 throws per account by default, the same on every device you sign in on.
+- **Live across devices:** a phone with the throws page open sees throws recorded on the computer within a second, over a server-sent event stream.
+- **Offline-safe:** changes apply immediately and queue in the browser until the server has them. The dot on the account button is green when saved, amber while saving, red when the server can't be reached.
+- **Uploading old throws:** the account menu offers to upload the throws saved in this browser. It copies them, and re-uploading never makes duplicates. Signing out shows the browser's own history again.
+
+The server is `bun run server`: `server/main.ts` (Bun.serve) and `server/db.ts` (bun:sqlite). It stores users (argon2id password hashes), login sessions (only a SHA-256 of the cookie token is stored; HttpOnly, SameSite=Lax cookie, 60 days) and throws (the client's record as JSON, keyed by user and throw id). It refuses cross-site writes by checking Origin, and limits failed logins per IP and per IP + username. If `dist/` exists it also serves the built site, so production is `bun run build && bun run server` on one port.
+
+| Env | Default | |
+|---|---|---|
+| `PORT` | 8787 | |
+| `DISCYBOI_DB` | `data/discyboi.db` | SQLite file (git-ignored); back it up by copying it while the server is stopped |
+| `DISCYBOI_SIGNUP` | `open` | `closed` stops new accounts |
+| `DISCYBOI_MAX_THROWS` | 20000 | per account; the oldest are dropped beyond it |
+| `DISCYBOI_TRUST_PROXY` | off | `1` behind a reverse proxy (the Vite dev proxy counts), so rate limits see real client IPs and https is detected |
+| `DISCYBOI_ORIGINS` | | extra allowed origins for writes, comma separated |
+
+Over plain http on a LAN the session cookie and password travel unencrypted. That's fine at home, but put it behind https (e.g. `tailscale serve`, which Web Bluetooth also needs) before using it anywhere else, and set sign-up to `closed` once your accounts exist if the server is reachable from the internet.
+
+API (JSON, cookie session): `GET /api/me`, `POST /api/signup|login|logout|password`, `GET /api/throws`, `POST /api/throws` (bulk upsert, ≤1000), `DELETE /api/throws[/id]`, `GET /api/events` (SSE: put / del / clear).
 
 ## Flight model (`src/sim/`)
 
@@ -70,9 +117,11 @@ Flight numbers are manufacturer opinion, so expect the right *shape* and roughly
 ```
 src/sim/      flight model, presets, firmware -> params conversion (no DOM; tested with bun test)
 src/scene/    world (field, basket, trees), disc mesh, playback + trail, cameras
-src/ui/       panels: disc picker, release, history, stats, device
+src/ui/       panels: disc picker, release, history, stats, device, account
 src/ble/      protocol (byte layouts), Web Bluetooth client, fake device
-src/store/    localStorage history + settings
+src/store/    history (localStorage or account) + settings, API client, records from disc throws
+server/       Bun + SQLite: accounts, sessions, throws, live events; serves dist/
+src/throws/   throws page: metrics, SVG charts (paths, trend), page
 ```
 
 `scene/world.ts` takes a `Hole` (tee, basket, obstacles), which is the hook for courses and scoring later.

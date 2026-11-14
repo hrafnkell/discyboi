@@ -6,6 +6,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { DiscSpec, FlightResult, TrajectoryPoint } from '../sim/types';
 import { toThree } from './coords';
 import { DiscMesh } from './discMesh';
+import { Label } from './labels';
 
 /** Drawn spin is slowed down: 20 rev/s would alias into a random-looking wobble at 60 fps. */
 const VISUAL_SPIN = 1 / 14;
@@ -90,6 +91,10 @@ export class FlightView {
   private shadow: THREE.Mesh;
   private halo: THREE.Sprite;
   private landing: THREE.Mesh;
+  private landingLabel: Label;
+  private rest: THREE.Mesh;
+  /** Formats distances for the landing label (set from the units setting). */
+  fmt: (m: number) => string = (m) => `${m.toFixed(0)} m`;
   private ghosts = new THREE.Group();
   private ghostMats: LineMaterial[] = [];
   private flight?: FlightResult;
@@ -123,6 +128,27 @@ export class FlightView {
     this.landing.rotation.x = -Math.PI / 2;
     this.landing.visible = false;
     this.group.add(this.landing);
+    this.landingLabel = new Label('', 0, 0.05, { onTop: true, fixed: true });
+    this.landingLabel.sprite.visible = false;
+    this.group.add(this.landingLabel.sprite);
+    this.rest = new THREE.Mesh(
+      new THREE.RingGeometry(0.2, 0.27, 24),
+      new THREE.MeshBasicMaterial({ color: 0xff4d6d, transparent: true, opacity: 0.9, depthWrite: false }),
+    );
+    this.rest.rotation.x = -Math.PI / 2;
+    this.rest.visible = false;
+    this.group.add(this.rest);
+  }
+
+  /** Re-draws the landing label, e.g. after the units change. */
+  refreshLabel() {
+    const f = this.flight;
+    if (!f) return;
+    const skip = Math.hypot(f.rest[0] - f.landing[0], f.rest[1] - f.landing[1]);
+    this.landingLabel.set([
+      { text: `${this.fmt(f.carry)} flight` },
+      { text: `+${this.fmt(skip)} skip · ${this.fmt(f.distance)} total`, size: 0.6, color: '#ffd6de' },
+    ]);
   }
 
   setResolution(w: number, h: number) {
@@ -146,6 +172,9 @@ export class FlightView {
     this.playing = autoplay;
     this.landing.position.copy(toThree(flight.landing)).setY(0.03);
     this.landing.visible = false;
+    this.landingLabel.sprite.position.copy(toThree(flight.landing)).setY(0.6);
+    this.rest.position.copy(toThree(flight.rest)).setY(0.035);
+    this.refreshLabel();
     this.update(0);
   }
 
@@ -197,6 +226,8 @@ export class FlightView {
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.15, 1 - h / 25);
     this.halo.position.copy(p.pos).add(new THREE.Vector3(0, 0.0, 0));
     this.landing.visible = this.t >= f.flightTime;
+    this.landingLabel.sprite.visible = this.landing.visible;
+    this.rest.visible = this.t >= this.duration && this.playing === false && this.t > f.flightTime;
 
     // Trail up to the current time (rebuilt only when the sample count changes).
     let n = 0;

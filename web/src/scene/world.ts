@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { Vec3 } from '../sim/types';
 import { toThree } from './coords';
+import { Label } from './labels';
 
 export interface Obstacle {
   kind: 'tree';
@@ -63,26 +64,6 @@ function grassTexture(): THREE.CanvasTexture {
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   return t;
-}
-
-function labelSprite(text: string, color = '#ffffff', scale = 4): THREE.Sprite {
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 128;
-  const g = c.getContext('2d')!;
-  g.font = '600 64px system-ui, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineWidth = 10;
-  g.strokeStyle = 'rgba(0,0,0,0.35)';
-  g.strokeText(text, 128, 64);
-  g.fillStyle = color;
-  g.fillText(text, 128, 64);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  s.scale.set(scale, scale / 2, 1);
-  return s;
 }
 
 function basketMesh(): THREE.Group {
@@ -206,15 +187,28 @@ export class World {
       arc.rotation.x = -Math.PI / 2;
       arc.position.y = 0.02;
       this.group.add(arc);
-      const lab = labelSprite(`${d} m`, '#ffffff', d >= 100 ? 5 : 3.5);
-      lab.position.set(d, 0.9, -d * Math.sin(Math.PI / 5) - 2);
-      this.group.add(lab);
+      const lab = new Label(`${d} m`, d >= 100 ? 2.5 : 1.75, 0.03);
+      lab.sprite.position.set(d, 0.3, -d * Math.sin(Math.PI / 5) - 2);
+      this.group.add(lab.sprite);
     }
-    // Centre line.
+    // Centre line with ticks every 5 m (longer every 25 m) and a distance label every 25 m.
     const line = new THREE.Mesh(new THREE.PlaneGeometry(250, 0.06), ringMat);
     line.rotation.x = -Math.PI / 2;
     line.position.set(125, 0.02, 0);
     this.group.add(line);
+    const tickMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+    for (let d = 5; d <= 250; d += 5) {
+      const major = d % 25 === 0;
+      const tick = new THREE.Mesh(new THREE.PlaneGeometry(major ? 0.12 : 0.08, major ? 2.4 : 0.9), major ? tickMat : ringMat);
+      tick.rotation.x = -Math.PI / 2;
+      tick.position.set(d, 0.021, 0);
+      this.group.add(tick);
+      if (major) {
+        const lab = new Label(`${d}`, 0.7, 0.02);
+        lab.sprite.position.set(d, 0.05, 1.6); // just right of the line, clear of the flight path
+        this.group.add(lab.sprite);
+      }
+    }
 
     // Tee pad.
     const pad = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.06, 1.6), new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.95 }));

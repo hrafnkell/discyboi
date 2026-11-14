@@ -32,16 +32,71 @@ export class CameraRig {
     c.zoomSpeed = 1.6;
     c.rotateSpeed = 0.8;
     c.zoomToCursor = false;
+    c.minPolarAngle = 0.05;
+    c.enablePan = true; // right drag / two-finger drag; the pan offset then rides along with the disc
     c.screenSpacePanning = true;
     c.enabled = false;
+    this.bindZoom(dom);
   }
 
-  /** Free view orbits the disc and follows it: drag = rotate, wheel/pinch = zoom, right-drag = pan. */
+  /** Per-mode zoom for the scripted rigs (free view uses OrbitControls' own dolly). 1 = default framing. */
+  private zoom: Partial<Record<CamMode, number>> = { chase: 1, side: 1, top: 1 };
+  private static ZOOM_RANGE: Partial<Record<CamMode, [number, number]>> = { chase: [0.35, 8], side: [0.3, 4], top: [0.15, 5] };
+
+  private zoomBy(f: number) {
+    const r = CameraRig.ZOOM_RANGE[this.mode];
+    if (!r || this.zoom[this.mode] === undefined) return;
+    this.zoom[this.mode] = Math.min(r[1], Math.max(r[0], this.zoom[this.mode]! * f));
+  }
+
+  private bindZoom(dom: HTMLElement) {
+    dom.addEventListener(
+      'wheel',
+      (e) => {
+        if (this.mode === 'free' || !CameraRig.ZOOM_RANGE[this.mode]) return;
+        e.preventDefault();
+        const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        this.zoomBy(Math.exp(dy * 0.0015));
+      },
+      { passive: false },
+    );
+    // Pinch zoom on touch screens.
+    const pts = new Map<number, { x: number; y: number }>();
+    let last = 0;
+    const spread = () => {
+      const [a, b] = [...pts.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    dom.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) last = spread();
+    });
+    dom.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size !== 2 || this.mode === 'free') return;
+      const d = spread();
+      if (last > 0 && d > 0) this.zoomBy(last / d);
+      last = d;
+    });
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      last = 0;
+    };
+    dom.addEventListener('pointerup', up);
+    dom.addEventListener('pointercancel', up);
+  }
+
+  /** Free view orbits the disc and follows it: left drag = rotate, right drag = pan, wheel/pinch = zoom. */
   setMode(mode: CamMode) {
     this.mode = mode;
     this.controls.enabled = mode === 'free';
     if (mode === 'free') {
+      // The top view leaves cam.up pointing downrange; OrbitControls needs +Y or every drag rolls the view.
+      this.camera.up.set(0, 1, 0);
       const target = this.lastPose ?? this.look;
+      this.panOffset.set(0, 0, 0);
       this.controls.target.copy(target);
       // Start from a sensible distance rather than wherever the previous rig left the camera.
       const off = this.camera.position.clone().sub(target);
@@ -54,10 +109,13 @@ export class CameraRig {
 
   private lastPose?: THREE.Vector3;
   private followFrom?: THREE.Vector3;
+  /** Free view: how far the user has panned the pivot away from the disc. */
+  private panOffset = new THREE.Vector3();
 
   reset() {
     this.dir.set(1, 0, 0);
     this.look.set(10, 1, 0);
+    this.panOffset.set(0, 0, 0);
   }
 
   update(pose: Pose | undefined, dt: number) {
@@ -69,12 +127,13 @@ export class CameraRig {
       // Carry camera and target along with the disc so the orbit stays centred on it.
       if (pose && this.followFrom) {
         const d = pose.pos.clone().sub(this.followFrom);
-        this.controls.target.add(d);
         cam.position.add(d);
+        this.controls.target.copy(pose.pos).add(this.panOffset); // pivot on the disc, plus any pan
         cam.position.y = Math.max(cam.position.y, 0.2);
       }
       this.followFrom = pose ? pose.pos.clone() : this.followFrom;
       this.controls.update();
+      if (this.followFrom) this.panOffset.copy(this.controls.target).sub(this.followFrom);
       this.look.copy(this.controls.target);
       return;
     }
@@ -85,20 +144,22 @@ export class CameraRig {
     const want = new THREE.Vector3();
     const target = p.clone();
     switch (this.mode) {
-      case 'chase':
-        want.copy(p).addScaledVector(this.dir, -2.6).add(new THREE.Vector3(0, 0.75, 0));
+      case 'chase': {
+        const z = this.zoom.chase!;
+        want.copy(p).addScaledVector(this.dir, -2.6 * z).add(new THREE.Vector3(0, 0.75 * Math.sqrt(z), 0));
         want.y = Math.max(want.y, 0.5);
         target.addScaledVector(this.dir, 3);
         break;
+      }
       case 'tee':
         want.set(-6, 2.0, 0.8);
         break;
       case 'side':
-        want.set(p.x - 5, 3, 45);
+        want.set(p.x - 5 * this.zoom.side!, 3 * this.zoom.side!, 45 * this.zoom.side!);
         target.set(p.x + 8, Math.max(p.y * 0.6, 1), p.z * 0.3);
         break;
       case 'top':
-        want.set(p.x, 70, p.z);
+        want.set(p.x, 70 * this.zoom.top!, p.z);
         target.set(p.x, 0, p.z);
         break;
     }
