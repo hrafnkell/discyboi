@@ -2,7 +2,7 @@
 
 Zephyr firmware for the [v3 board](../v3/README.md). It detects throws with the two LSM6DSV320X IMUs, works out release speed, angles and spin, and reports them over BLE. It can also send the raw 3-second capture of each throw so the algorithms can be refined offline.
 
-**Status: builds, but has not run on hardware yet.** The analysis maths is tested on the host with synthetic throws (`test/`). Thresholds will need tuning against real throws.
+**Status: runs on the v4 board.** First boot on 2026-11-23: both IMUs answer (3 blinks) and motion moves the state machine from IDLE to ARMED. Bluetooth and real throws are still to be checked. The analysis maths is tested on the host with synthetic throws (`test/`), and the thresholds will need tuning against real throws.
 
 ## Building
 
@@ -19,7 +19,44 @@ The build runs in the `zmkfirmware/zmk-build-arm:stable` Docker image, which use
 
 ## Flashing and logs
 
-Connect a J-Link (or an nRF54L15 DK's debugger) through the Tag-Connect TC2030 on J2. Run these on the host, not in Docker:
+The debug connector is the Tag-Connect TC2030 footprint J2. Seen from the top, flat edge up:
+
+```
+   (2) SWDIO   (4) SWDCLK   (6) –
+   (1) +3V0    (3) NRESET   (5) GND
+```
+
+### With a Raspberry Pi Pico (RP2040) and probe-rs
+
+This is the cheapest route, and the one used for first bring-up.
+
+1. Flash `debugprobe_on_pico.uf2` from [raspberrypi/debugprobe](https://github.com/raspberrypi/debugprobe/releases) onto the Pico: hold BOOTSEL, plug it in, and drag the file onto the drive. It becomes a CMSIS-DAP probe.
+2. Wire it to J2 (soldered 30 AWG wires or pogo pins, if you don't have the TC2030 cable):
+
+   | Pico | J2 |
+   |---|---|
+   | GP2 (pin 4) | 4 SWDCLK |
+   | GP3 (pin 5) | 2 SWDIO |
+   | GND (pin 3) | 5 GND |
+   | 3V3 OUT (pin 36) | 1 +3V0, only with no cell in the clip |
+
+   **Power from the Pico or from a coin cell, never both.** The Pico's 3.3 V would back-feed through U2 (or a wire link fitted in its place) into the CR2032.
+3. Install [probe-rs](https://probe.rs) (0.32 or later lists the `nRF54L15`) and run, on the host:
+
+```sh
+probe-rs info                                            # debug port should be Nordic, part 0x1c0
+probe-rs erase --chip nRF54L15 --allow-erase-all         # first time only: a new nRF54L15 is locked
+probe-rs run --chip nRF54L15 build/zephyr/zephyr.elf     # flash, reset and show the RTT log
+```
+
+- `probe-rs run` takes the **.elf**, not the .hex. The .elf also tells it where the RTT log buffer is.
+- `probe-rs info` reports `debug entry not present` on the two memory APs even after unlocking. That's normal for this chip. To check that it's unlocked, read the erased flash with `probe-rs read --chip nRF54L15 b32 0x0 4`, which should return `ffffffff`.
+- probe-rs warns that RTT channels 1 and 2 aren't initialised. The log is on channel 0, so ignore it.
+- With power from the Pico and no cell, the battery reads a few hundred mV (0 %). That's expected.
+
+### With a J-Link or an nRF54L15 DK
+
+Connect through the Tag-Connect TC2030 on J2, then run these on the host, not in Docker:
 
 ```sh
 nrfutil device recover                                   # first time only: a new nRF54L15 may be locked
