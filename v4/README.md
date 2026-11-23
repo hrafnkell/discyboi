@@ -180,6 +180,7 @@ Notes for the LiPo build:
   1. Paste and reflow the top side (BC15M, IMUs and passives).
   2. Hand-solder the battery clip's two tabs on the bottom with an iron. The round negative pad must stay flat: leave it as delivered on HASL or ENIG, and tin it thin and flat on OSP.
 - **BC15M:** it's an LGA, so it needs paste and reflow (stencil + hot plate/air). An iron alone won't do.
+- **Placement map:** open `assembly.html` in a browser. It shows where each part goes and which way round, for the CR2032, LIR2032 or LiPo build, with tick-boxes and the hot-plate reflow profile.
 
 ## Enclosure
 

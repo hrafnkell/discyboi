@@ -1,0 +1,588 @@
+<title>discyboi v4 Placement Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout: a bench sheet. Board drawing (sticky, left) beside the placement list (right); one column on phones. */
+:root {
+  --bg: #f3f5f2;
+  --panel: #ffffff;
+  --fg: #172019;
+  --muted: #5d6b62;
+  --line: #d6ddd7;
+  --hl: #d4237a;          /* highlight: reads on green mask and gold pads */
+  --hl-soft: #fbe3ef;
+  --ok: #1f7a4a;
+  --warn: #9a5b00;
+  --warn-soft: #fff1d6;
+  --mask: #0f4d2c;        /* the drawing is the physical board: same colours in both themes */
+  --mask-edge: #0a3820;
+  --pad: #d9b45a;
+  --pad-dim: #8c7a4a;
+  --silk: #f3f1e8;
+  --body: #2a2f2c;
+  --f-display: 'IBM Plex Sans Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --panel: #18201b; --fg: #e4ebe5; --muted: #93a398; --line: #2b362f;
+    --hl: #ff5aa8; --hl-soft: #3a1828; --ok: #5ad08f; --warn: #f0b44c; --warn-soft: #33270f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --panel: #18201b; --fg: #e4ebe5; --muted: #93a398; --line: #2b362f;
+  --hl: #ff5aa8; --hl-soft: #3a1828; --ok: #5ad08f; --warn: #f0b44c; --warn-soft: #33270f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 24px; }
+h1 { font-family: var(--f-display); font-size: 28px; line-height: 1.1; margin: 0; letter-spacing: 0.2px; text-wrap: balance; }
+h1 small { display: block; font-family: var(--f-body); font-weight: 400; font-size: 13px; color: var(--muted); margin-top: 4px; letter-spacing: 0; }
+h2 { font-family: var(--f-display); font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 0 0 8px; }
+.progress { font-family: var(--f-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress b { color: var(--fg); }
+.main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* board */
+.boardcard { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+@media (max-width: 900px) { .boardcard { position: static; } }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 13px var(--f-body); padding: 6px 12px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.seg button:focus-visible, .row:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+label.tog { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.svgbox { background: #0b1a12; border-radius: 8px; overflow: hidden; }
+svg.board { display: block; width: 100%; height: auto; }
+.caption { font-size: 12.5px; color: var(--muted); min-height: 2.9em; }
+.caption b { color: var(--fg); font-family: var(--f-mono); }
+
+.pad { fill: var(--pad); }
+.fp.dnp .pad { fill: var(--pad-dim); }
+.fp .bodyr { fill: var(--body); stroke: #000; stroke-width: 0.03; opacity: 0.9; }
+.fp .mark { fill: #e9e6da; }
+.fp .reflab { font-family: var(--f-mono); font-weight: 600; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,0.75); stroke-width: 0.22px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.fp .hit { fill: transparent; cursor: pointer; }
+.fp .outline { fill: none; stroke: none; }
+svg.sel .fp { opacity: 0.32; }
+svg.sel .fp.on { opacity: 1; }
+.fp.on .outline { stroke: var(--hl); stroke-width: 0.16; }
+.fp.on .pad { fill: #ffd36b; }
+.fp.done:not(.on) .bodyr { fill: #3c4a40; }
+.fp .placed { fill: var(--ok); }
+.silk { fill: none; stroke: var(--silk); stroke-width: 0.12; stroke-linecap: round; opacity: 0.75; pointer-events: none; }
+.hide-bodies .fp:not(.on) .bodyr, .hide-bodies .fp:not(.on) .mark { display: none; }
+
+/* list */
+.list { display: grid; gap: 18px; min-width: 0; }
+.section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.section > p { margin: -2px 0 10px; color: var(--muted); font-size: 13px; }
+.row {
+  display: grid; grid-template-columns: 22px 34px minmax(0, 1fr); gap: 4px 10px; align-items: start;
+  padding: 10px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+}
+.row + .row { border-top-color: var(--line); border-radius: 0; }
+.row:hover { background: color-mix(in srgb, var(--hl-soft) 55%, transparent); }
+.row.on { background: var(--hl-soft); border-color: var(--hl); border-radius: 8px; }
+.row.on + .row { border-top-color: transparent; }
+.row input { margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; }
+.qty { font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding-top: 1px; font-variant-numeric: tabular-nums; }
+.what { min-width: 0; display: grid; gap: 3px; }
+.what .top { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.val { font-weight: 600; font-size: 15px; }
+.pkg { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.refs { font-family: var(--f-mono); font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+.mpn { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.orient { font-size: 13px; }
+.badge { display: inline-block; font: 600 11px var(--f-body); letter-spacing: 0.4px; text-transform: uppercase; padding: 1px 7px; border-radius: 99px; vertical-align: 1px; }
+.badge.pol { background: var(--hl-soft); color: var(--hl); border: 1px solid color-mix(in srgb, var(--hl) 40%, transparent); }
+.badge.np { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.row.done .val, .row.done .refs { text-decoration: line-through; text-decoration-color: var(--ok); text-decoration-thickness: 2px; }
+.note { background: var(--warn-soft); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; color: var(--fg); }
+.note b { color: var(--warn); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
+.steps b { font-weight: 600; }
+.tips { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.resetbtn { font: 500 12px var(--f-body); background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.buildbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.seg button[data-build] { font-family: var(--f-mono); font-weight: 600; }
+.buildnote { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--warn-soft); font-size: 13px; }
+.buildnote b { color: var(--warn); }
+:root { --st1: #f2c94c; --st2: #f2994a; --st3: #d4237a; --st4: #2d9cdb; --grid: #dde3de; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --grid: #2b362f; } }
+:root[data-theme="dark"] { --grid: #2b362f; }
+.chartbox { overflow-x: auto; margin: 4px 0 10px; }
+svg.profile { display: block; width: 100%; min-width: 420px; height: auto; font-family: var(--f-mono); }
+svg.profile text { fill: var(--muted); font-size: 11px; }
+svg.profile .gl { stroke: var(--grid); stroke-width: 1; }
+svg.profile .ax { stroke: var(--muted); stroke-width: 1; }
+svg.profile .curve { fill: none; stroke: var(--fg); stroke-width: 2.5; stroke-linejoin: round; }
+svg.profile .liq { stroke: var(--hl); stroke-width: 1.25; stroke-dasharray: 5 4; }
+svg.profile text.liqt { fill: var(--hl); font-weight: 600; }
+svg.profile text.stl { fill: var(--fg); font-family: var(--f-body); font-size: 11.5px; font-weight: 600; }
+svg.profile .band { opacity: 0.16; }
+svg.profile .hov { cursor: crosshair; }
+.tablebox { overflow-x: auto; margin-bottom: 10px; }
+.list > .section, .boardcard { min-width: 0; }
+table.stages td:first-child { white-space: nowrap; }
+table.stages { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 460px; }
+table.stages th { text-align: left; font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); padding: 4px 8px 6px 0; border-bottom: 1px solid var(--line); }
+table.stages td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+table.stages td:nth-child(2), table.stages td:nth-child(3) { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--c); margin-right: 7px; }
+.tips b { color: var(--fg); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .row, .fp { transition: opacity 0.15s, background 0.15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>discyboi v4 placement map<small>Ø34 mm board · top side reflow on a hot plate · click a line to light its parts</small></h1>
+    <div class="buildbar">
+      <div class="seg" role="group" aria-label="Battery build">
+        <button type="button" data-build="cr2032">CR2032</button>
+        <button type="button" data-build="lir2032">LIR2032</button>
+        <button type="button" data-build="lipo">LiPo</button>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+  </header>
+
+  <p class="buildnote" id="buildnote"></p>
+  <div class="main">
+    <section class="boardcard" aria-label="Board drawing">
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Board side">
+          <button type="button" id="side-top" aria-pressed="true">Top</button>
+          <button type="button" id="side-bottom" aria-pressed="false">Bottom (flipped)</button>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <label class="tog"><input type="checkbox" id="opt-labels" checked> Ref labels</label>
+          <label class="tog"><input type="checkbox" id="opt-bodies" checked> Part bodies</label>
+        </div>
+      </div>
+      <div class="svgbox"><svg class="board" id="board" role="img" aria-label="Board with part positions"></svg></div>
+      <div class="legend">
+        <span><i style="background:#d9b45a"></i>pad</span>
+        <span><i style="background:#ffd36b;outline:1.5px solid var(--hl)"></i>selected</span>
+        <span><i style="background:#8c7a4a"></i>not fitted</span>
+        <span><i style="background:#e9e6da;border-radius:50%"></i>pin 1 / cathode</span>
+        <span><i style="background:var(--ok);border-radius:50%"></i>placed</span>
+      </div>
+      <div class="caption" id="caption">Tap a part on the board or a line in the list.</div>
+    </section>
+
+    <div class="list">
+      <section class="section">
+        <h2>Order of work</h2>
+        <ol class="steps">
+          <li><b>Paste:</b> tape the board in a frame of scrap boards, align the 0.10 mm stencil, one firm squeegee pass. Check the IMU pads: 14 clean, separate deposits each.</li>
+          <li><b>Place top side</b> with the list below, one value at a time. Do the BC15M and both IMUs first while the paste is fresh and nothing is in the way.</li>
+          <li><b>Reflow</b> on the hot plate (Sn63/Pb37: soak ~150 °C 60–90 s, peak 210–220 °C, then slide off to cool).</li>
+          <li><b>Inspect</b> the IMUs and BC15M edges with a loupe; fix bridges with flux + wick.</li>
+          <li id="step-bottom"></li>
+        </ol>
+      </section>
+
+      <section class="section" id="sec-reflow">
+        <h2>Reflow · hot plate, Sn63/Pb37 (melts at 183 °C)</h2>
+        <p>Read temperatures off the board with the thermal camera, not the plate dial.</p>
+        <div class="chartbox"><svg id="profile" class="profile" viewBox="0 0 560 250" role="img" aria-label="Reflow profile: board temperature over time"></svg></div>
+        <div class="tablebox">
+          <table class="stages">
+            <thead><tr><th>Stage</th><th>Board</th><th>Time</th><th>Plate / what you see</th></tr></thead>
+            <tbody>
+              <tr><td><span class="sw" style="--c:var(--st1)"></span>Preheat</td><td>25 → 150 °C</td><td>1–2 min</td><td>Board on a cold or warm (&lt; 100 °C) plate, dial ~160 °C</td></tr>
+              <tr><td><span class="sw" style="--c:var(--st2)"></span>Soak</td><td>150–170 °C</td><td>60–90 s</td><td>Paste turns dull grey, flux bubbles gently</td></tr>
+              <tr><td><span class="sw" style="--c:var(--st3)"></span>Reflow</td><td>peak 205–220 °C</td><td>30–60 s above 183 °C</td><td>Dial ~230–240 °C. Paste flashes shiny from the edges; module and IMUs settle. Hold 20–30 s after the last joint goes shiny</td></tr>
+              <tr><td><span class="sw" style="--c:var(--st4)"></span>Cool</td><td>→ &lt; 150 °C</td><td></td><td>Lift the carrier off flat onto a tile, or switch off. Don't bump it until it's below ~170 °C</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="tips">
+          <li><b>Thermal camera:</b> aim at the green solder mask beside the parts, emissivity ≈ 0.95. Shiny pads, solder and the plate read far too low.</li>
+          <li><b>Calibration for free:</b> the paste goes shiny at exactly 183 °C. Compare with the camera reading and correct for the offset.</li>
+          <li><b>Limits:</b> don't exceed ~230 °C on the board or ~90 s above 183 °C.</li>
+          <li><b>Carrier:</b> set the board on a scrap of thin aluminium or a spare PCB, centred on the plate's hot spot, and move the carrier, not the board.</li>
+          <li><b>Dry run first:</b> paste on a spare board, watch the camera, note the dial settings and times for your plate.</li>
+          <li><b>After:</b> clean flux off with IPA, especially round the IMUs.</li>
+        </ul>
+      </section>
+
+      <section class="section" id="sec-ic">
+        <h2>Top · polarised parts</h2>
+        <p>Orientation matters. The pink dot on the board is pin 1 (or the LED cathode).</p>
+        <div id="list-pol"></div>
+      </section>
+
+      <section class="section" id="sec-pass">
+        <h2>Top · passives</h2>
+        <p>No orientation. Ceramic caps are unmarked: open one tape at a time and finish it before the next.</p>
+        <div id="list-pass"></div>
+      </section>
+
+      <section class="section">
+        <h2>Bottom · by hand after reflow</h2>
+        <p id="bot-empty" hidden>Nothing on the bottom for the LiPo build: the clip stays off.</p>
+        <div id="list-bot"></div>
+      </section>
+
+      <section class="section">
+        <h2>Leave empty</h2>
+        <p>Paste on these pads is harmless; it just tins them.</p>
+        <div id="list-dnp"></div>
+      </section>
+
+      <section class="section">
+        <h2>Bench notes</h2>
+        <ul class="tips">
+          <li>Coordinates are KiCad's, with the board centre at (117, 117) mm and the flat edge at the top.</li>
+          <li>The bottom view is mirrored, as you see it after flipping the board left to right.</li>
+          <li>Ticks are kept in this browser only. <button type="button" class="resetbtn" id="reset">Clear all ticks</button></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"fps":[{"ref":"U4","val":"MCP73831T-2ACI/OT","fp":"SOT-23-5","x":123.9,"y":123.4,"rot":0.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",122.7625,122.45,1.325,0.6,0.0,4,"CHG_STAT","F",true],["2",122.7625,123.4,1.325,0.6,0.0,4,"GND","F",true],["3",122.7625,124.35,1.325,0.6,0.0,4,"VBAT","F",true],["4",125.0375,124.35,1.325,0.6,0.0,4,"VCHG","F",true],["5",125.0375,122.45,1.325,0.6,0.0,4,"PROG","F",true]],"crt":[121.805,121.655,4.19,3.49]},{"ref":"C10","val":"100n","fp":"C_0402_1005Metric","x":119.6,"y":118.6,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",119.6,118.12,0.56,0.62,270.0,4,"+3V0","F",true],["2",119.6,119.08,0.56,0.62,270.0,4,"GND","F",true]],"crt":[119.095,117.645,1.01,1.91]},{"ref":"C14","val":"4.7u","fp":"C_0402_1005Metric","x":121.2,"y":123.4,"rot":90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",121.2,123.88,0.56,0.62,90.0,4,"VBAT","F",true],["2",121.2,122.92,0.56,0.62,90.0,4,"GND","F",true]],"crt":[120.695,122.445,1.01,1.91]},{"ref":"C20","val":"100n","fp":"C_0402_1005Metric","x":106.6,"y":119.3,"rot":180.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",107.08,119.3,0.56,0.62,180.0,4,"+3V0","F",true],["2",106.12,119.3,0.56,0.62,180.0,4,"GND","F",true]],"crt":[105.645,118.795,1.91,1.01]},{"ref":"TP4","val":"CHG-","fp":"TestPoint_Pad_2.0x2.0mm","x":122.0,"y":127.0,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["1",122.0,127.0,2.0,2.0,0.0,1,"GND","F",true]],"crt":[120.455,125.455,3.09,3.09]},{"ref":"U3","val":"LSM6DSV320XTR","fp":"LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y","x":108.0,"y":117.0,"rot":0.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",106.8375,116.25,0.625,0.35,0.0,4,"SPI_MISO","F",true],["2",106.8375,116.75,0.625,0.35,0.0,4,"GND","F",true],["3",106.8375,117.25,0.625,0.35,0.0,4,"GND","F",true],["4",106.8375,117.75,0.625,0.35,0.0,4,"ACC_INT1","F",true],["5",107.5,117.9125,0.35,0.625,0.0,4,"+3V0","F",true],["6",108.0,117.9125,0.35,0.625,0.0,4,"GND","F",true],["7",108.5,117.9125,0.35,0.625,0.0,4,"GND","F",true],["8",109.1625,117.75,0.625,0.35,0.0,4,"+3V0","F",true],["9",109.1625,117.25,0.625,0.35,0.0,4,"ACC_INT2","F",true],["10",109.1625,116.75,0.625,0.35,0.0,4,"unconnected-(U3-OCS_Aux-Pad10)","F",true],["11",109.1625,116.25,0.625,0.35,0.0,4,"unconnected-(U3-SDO_Aux-Pad11)","F",true],["12",108.5,116.0875,0.35,0.625,0.0,4,"ACC_CS","F",true],["13",108.0,116.0875,0.35,0.625,0.0,4,"SPI_SCK","F",true],["14",107.5,116.0875,0.35,0.625,0.0,4,"SPI_MOSI","F",true]],"crt":[106.205,115.455,3.59,3.09]},{"ref":"D1","val":"Green","fp":"LED_0603_1608Metric","x":112.4,"y":115.8,"rot":180.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",113.1875,115.8,0.875,0.95,180.0,4,"GND","F",true],["2",111.6125,115.8,0.875,0.95,180.0,4,"LED_A","F",true]],"crt":[110.875,115.025,3.05,1.55]},{"ref":"J2","val":"TC2030-IDC-NL","fp":"Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical","x":105.5,"y":109.2,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["",102.96,109.2,0.9906,0.9906,0.0,0,"","both",false],["",108.04,108.184,0.9906,0.9906,0.0,0,"","both",false],["",108.04,110.216,0.9906,0.9906,0.0,0,"","both",false],["1",104.23,109.835,0.7874,0.7874,0.0,0,"+3V0","F",false],["2",104.23,108.565,0.7874,0.7874,0.0,0,"SWDIO","F",false],["3",105.5,109.835,0.7874,0.7874,0.0,0,"NRESET","F",false],["4",105.5,108.565,0.7874,0.7874,0.0,0,"SWDCLK","F",false],["5",106.77,109.835,0.7874,0.7874,0.0,0,"GND","F",false],["6",106.77,108.565,0.7874,0.7874,0.0,0,"unconnected-(J2-SWO-Pad6)","F",false]],"crt":[101.955,107.155,7.09,4.09]},{"ref":"C22","val":"100u","fp":"C_1206_3216Metric","x":128.4,"y":116.1,"rot":0.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",126.925,116.1,1.15,1.8,0.0,4,"VBAT","F",true],["2",129.875,116.1,1.15,1.8,0.0,4,"GND","F",true]],"crt":[126.055,114.905,4.69,2.39]},{"ref":"C19","val":"100n","fp":"C_0402_1005Metric","x":110.6,"y":118.1,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",110.6,117.62,0.56,0.62,270.0,4,"+3V0","F",true],["2",110.6,118.58,0.56,0.62,270.0,4,"GND","F",true]],"crt":[110.095,117.145,1.01,1.91]},{"ref":"TP2","val":"BAT-","fp":"TestPoint_Pad_2.0x2.0mm","x":115.3,"y":128.4,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["1",115.3,128.4,2.0,2.0,0.0,1,"GND","F",true]],"crt":[113.755,126.855,3.09,3.09]},{"ref":"R9","val":"100k","fp":"R_0402_1005Metric","x":122.4,"y":110.3,"rot":180.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",122.91,110.3,0.54,0.64,180.0,4,"VCHG","F",true],["2",121.89,110.3,0.54,0.64,180.0,4,"CHG_DET","F",true]],"crt":[121.425,109.785,1.95,1.03]},{"ref":"C18","val":"100n","fp":"C_0402_1005Metric","x":114.8,"y":123.0,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",114.8,122.52,0.56,0.62,270.0,4,"VBAT_SENSE","F",true],["2",114.8,123.48,0.56,0.62,270.0,4,"GND","F",true]],"crt":[114.295,122.045,1.01,1.91]},{"ref":"R7","val":"47k","fp":"R_0402_1005Metric","x":126.5,"y":124.6,"rot":-90.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",126.5,124.09,0.54,0.64,270.0,4,"PROG","F",true],["2",126.5,125.11,0.54,0.64,270.0,4,"GND","F",true]],"crt":[125.985,123.625,1.03,1.95]},{"ref":"D2","val":"Red","fp":"LED_0603_1608Metric","x":128.0,"y":122.2,"rot":90.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",128.0,122.9875,0.875,0.95,90.0,4,"CHG_STAT","F",true],["2",128.0,121.4125,0.875,0.95,90.0,4,"CHG_LED","F",true]],"crt":[127.225,120.675,1.55,3.05]},{"ref":"C12","val":"100n","fp":"C_0402_1005Metric","x":115.6,"y":119.8,"rot":180.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",116.08,119.8,0.56,0.62,180.0,4,"+3V0","F",true],["2",115.12,119.8,0.56,0.62,180.0,4,"GND","F",true]],"crt":[114.645,119.295,1.91,1.01]},{"ref":"R10","val":"100k","fp":"R_0402_1005Metric","x":122.4,"y":109.1,"rot":0.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",121.89,109.1,0.54,0.64,0.0,4,"CHG_DET","F",true],["2",122.91,109.1,0.54,0.64,0.0,4,"GND","F",true]],"crt":[121.425,108.585,1.95,1.03]},{"ref":"R8","val":"1k","fp":"R_0402_1005Metric","x":128.5,"y":118.8,"rot":90.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",128.5,119.31,0.54,0.64,90.0,4,"VCHG","F",true],["2",128.5,118.29,0.54,0.64,90.0,4,"CHG_LED","F",true]],"crt":[127.985,117.825,1.03,1.95]},{"ref":"C1","val":"10u","fp":"C_0402_1005Metric","x":122.2,"y":112.6,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",122.2,112.12,0.56,0.62,270.0,4,"+3V0","F",true],["2",122.2,113.08,0.56,0.62,270.0,4,"GND","F",true]],"crt":[121.695,111.645,1.01,1.91]},{"ref":"U5","val":"LSM6DSV320XTR","fp":"LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y","x":117.0,"y":117.5,"rot":0.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",115.8375,116.75,0.625,0.35,0.0,4,"SPI_MISO","F",true],["2",115.8375,117.25,0.625,0.35,0.0,4,"GND","F",true],["3",115.8375,117.75,0.625,0.35,0.0,4,"GND","F",true],["4",115.8375,118.25,0.625,0.35,0.0,4,"IMU_INT1","F",true],["5",116.5,118.4125,0.35,0.625,0.0,4,"+3V0","F",true],["6",117.0,118.4125,0.35,0.625,0.0,4,"GND","F",true],["7",117.5,118.4125,0.35,0.625,0.0,4,"GND","F",true],["8",118.1625,118.25,0.625,0.35,0.0,4,"+3V0","F",true],["9",118.1625,117.75,0.625,0.35,0.0,4,"IMU_INT2","F",true],["10",118.1625,117.25,0.625,0.35,0.0,4,"unconnected-(U5-OCS_Aux-Pad10)","F",true],["11",118.1625,116.75,0.625,0.35,0.0,4,"unconnected-(U5-SDO_Aux-Pad11)","F",true],["12",117.5,116.5875,0.35,0.625,0.0,4,"IMU_CS","F",true],["13",117.0,116.5875,0.35,0.625,0.0,4,"SPI_SCK","F",true],["14",116.5,116.5875,0.35,0.625,0.0,4,"SPI_MOSI","F",true]],"crt":[115.205,115.955,3.59,3.09]},{"ref":"TP3","val":"CHG+ (5V)","fp":"TestPoint_Pad_2.0x2.0mm","x":118.7,"y":128.4,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["1",118.7,128.4,2.0,2.0,0.0,1,"VCHG","F",true]],"crt":[117.155,126.855,3.09,3.09]},{"ref":"R4","val":"10M","fp":"R_0402_1005Metric","x":113.6,"y":123.0,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",113.6,122.49,0.54,0.64,270.0,4,"VBAT_SENSE","F",true],["2",113.6,123.51,0.54,0.64,270.0,4,"GND","F",true]],"crt":[113.085,122.025,1.03,1.95]},{"ref":"U1","val":"BC15M","fp":"Fanstel_BC15M","x":117.0,"y":108.0,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["A1",114.325,107.6,1.25,0.4,0.0,4,"ACC_INT1","F",true],["A2",114.325,108.5,1.25,0.4,0.0,4,"IMU_INT1","F",true],["A3",114.325,109.4,1.25,0.4,0.0,4,"SWDIO","F",true],["A4",114.325,110.3,1.25,0.4,0.0,4,"SWDCLK","F",true],["A5",114.325,111.2,1.25,0.4,0.0,4,"LED","F",true],["A6",114.75,112.5,0.4,1.2,0.0,4,"ACC_CS","F",true],["B1",115.65,107.6,0.4,0.4,0.0,0,"IMU_INT2","F",true],["B2",115.65,108.5,0.4,0.4,0.0,0,"unconnected-(U1-P0.03-PadB2)","F",true],["B3",115.65,109.4,0.4,0.4,0.0,0,"unconnected-(U1-P2.07-PadB3)","F",true],["B4",115.65,110.3,0.4,0.4,0.0,0,"unconnected-(U1-P1.07-PadB4)","F",true],["B5",115.65,111.2,0.4,0.4,0.0,0,"unconnected-(U1-P1.05-PadB5)","F",true],["B6",115.65,112.5,0.4,1.2,0.0,4,"VBAT_SENSE","F",true],["C1",116.55,107.6,0.4,0.4,0.0,0,"unconnected-(U1-P2.10-PadC1)","F",true],["C2",116.55,108.5,0.4,0.4,0.0,0,"unconnected-(U1-P0.02-PadC2)","F",true],["C3",116.55,109.4,0.4,0.4,0.0,0,"unconnected-(U1-P1.09-PadC3)","F",true],["C4",116.55,110.3,0.4,0.4,0.0,0,"unconnected-(U1-P2.00-PadC4)","F",true],["C5",116.55,111.2,0.4,0.4,0.0,0,"unconnected-(U1-P1.04-PadC5)","F",true],["C6",116.55,112.5,0.4,1.2,0.0,4,"SPI_SCK","F",true],["D1",117.45,107.6,0.4,0.4,0.0,0,"ACC_INT2","F",true],["D2",117.45,108.5,0.4,0.4,0.0,0,"unconnected-(U1-P1.10-PadD2)","F",true],["D3",117.45,109.4,0.4,0.4,0.0,0,"unconnected-(U1-P2.08-PadD3)","F",true],["D4",117.45,110.3,0.4,0.4,0.0,0,"unconnected-(U1-P1.14-PadD4)","F",true],["D5",117.45,111.2,0.4,0.4,0.0,0,"unconnected-(U1-P1.11-PadD5)","F",true],["D6",117.45,112.5,0.4,1.2,0.0,4,"SPI_MOSI","F",true],["E1",118.35,107.6,0.4,0.4,0.0,0,"GND","F",true],["E2",118.35,108.5,0.4,0.4,0.0,0,"unconnected-(U1-P1.13-PadE2)","F",true],["E3",118.35,109.4,0.4,0.4,0.0,0,"unconnected-(U1-P0.04-PadE3)","F",true],["E4",118.35,110.3,0.4,0.4,0.0,0,"unconnected-(U1-P2.03-PadE4)","F",true],["E5",118.35,111.2,0.4,0.4,0.0,0,"unconnected-(U1-P1.15-PadE5)","F",true],["E6",118.35,112.5,0.4,1.2,0.0,4,"unconnected-(U1-P1.02-PadE6)","F",true],["F1",119.675,107.6,1.25,0.4,0.0,4,"GND","F",true],["F2",119.675,108.5,1.25,0.4,0.0,4,"IMU_CS","F",true],["F3",119.675,109.4,1.25,0.4,0.0,4,"NRESET","F",true],["F4",119.675,110.3,1.25,0.4,0.0,4,"CHG_DET","F",true],["F5",119.675,111.2,1.25,0.4,0.0,4,"SPI_MISO","F",true],["F6",119.25,112.5,0.4,1.2,0.0,4,"+3V0","F",true]],"crt":[113.405,102.905,7.19,10.49]},{"ref":"C2","val":"100n","fp":"C_0402_1005Metric","x":121.1,"y":112.6,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",121.1,112.12,0.56,0.62,270.0,4,"+3V0","F",true],["2",121.1,113.08,0.56,0.62,270.0,4,"GND","F",true]],"crt":[120.595,111.645,1.01,1.91]},{"ref":"D3","val":"ESD5Z5.0T1G","fp":"D_SOD-523","x":118.0,"y":124.6,"rot":90.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",118.0,125.3,0.6,0.7,270.0,4,"VCHG","F",true],["2",118.0,123.9,0.6,0.7,270.0,4,"GND","F",true]],"crt":[117.255,123.305,1.49,2.59]},{"ref":"R5","val":"1k","fp":"R_0402_1005Metric","x":112.4,"y":114.4,"rot":180.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",112.91,114.4,0.54,0.64,180.0,4,"LED","F",true],["2",111.89,114.4,0.54,0.64,180.0,4,"LED_A","F",true]],"crt":[111.425,113.885,1.95,1.03]},{"ref":"C13","val":"4.7u","fp":"C_0402_1005Metric","x":126.5,"y":122.6,"rot":90.0,"side":"top","dnp":true,"nopos":false,"pads":[["1",126.5,123.08,0.56,0.62,90.0,4,"VCHG","F",true],["2",126.5,122.12,0.56,0.62,90.0,4,"GND","F",true]],"crt":[125.995,121.645,1.01,1.91]},{"ref":"U2","val":"MCP1700T-3002E/TT","fp":"SOT-23","x":124.6,"y":118.8,"rot":0.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",123.6625,117.85,1.475,0.6,0.0,4,"GND","F",true],["2",123.6625,119.75,1.475,0.6,0.0,4,"+3V0","F",true],["3",125.5375,118.8,1.475,0.6,0.0,4,"VBAT","F",true]],"crt":[122.625,117.055,3.95,3.49]},{"ref":"R3","val":"10M","fp":"R_0402_1005Metric","x":112.4,"y":123.0,"rot":90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",112.4,123.51,0.54,0.64,90.0,4,"VBAT","F",true],["2",112.4,122.49,0.54,0.64,90.0,4,"VBAT_SENSE","F",true]],"crt":[111.885,122.025,1.03,1.95]},{"ref":"C17","val":"1u","fp":"C_0402_1005Metric","x":127.4,"y":118.8,"rot":90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",127.4,119.28,0.56,0.62,90.0,4,"+3V0","F",true],["2",127.4,118.32,0.56,0.62,90.0,4,"GND","F",true]],"crt":[126.895,117.845,1.01,1.91]},{"ref":"C11","val":"1u","fp":"C_0402_1005Metric","x":120.7,"y":118.6,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",120.7,118.12,0.56,0.62,270.0,4,"+3V0","F",true],["2",120.7,119.08,0.56,0.62,270.0,4,"GND","F",true]],"crt":[120.195,117.645,1.01,1.91]},{"ref":"C21","val":"1u","fp":"C_0402_1005Metric","x":111.7,"y":118.1,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",111.7,117.62,0.56,0.62,270.0,4,"+3V0","F",true],["2",111.7,118.58,0.56,0.62,270.0,4,"GND","F",true]],"crt":[111.195,117.145,1.01,1.91]},{"ref":"C16","val":"1u","fp":"C_0402_1005Metric","x":121.9,"y":119.0,"rot":-90.0,"side":"top","dnp":false,"nopos":false,"pads":[["1",121.9,118.52,0.56,0.62,270.0,4,"VBAT","F",true],["2",121.9,119.48,0.56,0.62,270.0,4,"GND","F",true]],"crt":[121.395,118.045,1.01,1.91]},{"ref":"TP1","val":"BAT+","fp":"TestPoint_Pad_2.0x2.0mm","x":112.0,"y":127.0,"rot":0.0,"side":"top","dnp":false,"nopos":true,"pads":[["1",112.0,127.0,2.0,2.0,0.0,1,"VBAT","F",true]],"crt":[110.455,125.455,3.09,3.09]},{"ref":"BT1","val":"CR2032","fp":"Linx_BAT-HLD-003-SMT","x":117.0,"y":119.5,"rot":180.0,"side":"bottom","dnp":false,"nopos":false,"pads":[["1",129.9,119.5,5.7,6.1,180.0,1,"VBAT","B",true],["1",104.1,119.5,5.7,6.1,180.0,1,"VBAT","B",true],["2",117.0,119.5,14.0,14.0,180.0,0,"GND","B",true]],"crt":[100.955,109.155,32.09,21.14]}],"silkF":"M4.5867 13.8729 L4.5867 13.2729 M4.8724 13.8729 L4.8724 13.2729 M4.8724 13.2729 L5.0724 13.7015 M5.0724 13.7015 L5.2724 13.2729 M5.2724 13.2729 L5.2724 13.8729 M5.5581 13.2729 L5.5581 13.7586 M5.5581 13.7586 L5.5867 13.8157 M5.5867 13.8157 L5.6153 13.8443 M5.6153 13.8443 L5.6724 13.8729 M5.6724 13.8729 L5.7867 13.8729 M5.7867 13.8729 L5.8438 13.8443 M5.8438 13.8443 L5.8724 13.8157 M5.8724 13.8157 L5.9010 13.7586 M5.9010 13.7586 L5.9010 13.2729 M6.1581 13.3300 L6.1867 13.3015 M6.1867 13.3015 L6.2438 13.2729 M6.2438 13.2729 L6.3867 13.2729 M6.3867 13.2729 L6.4438 13.3015 M6.4438 13.3015 L6.4724 13.3300 M6.4724 13.3300 L6.5010 13.3872 M6.5010 13.3872 L6.5010 13.4443 M6.5010 13.4443 L6.4724 13.5300 M6.4724 13.5300 L6.1295 13.8729 M6.1295 13.8729 L6.5010 13.8729 M7.2153 13.8729 L7.2153 13.4729 M7.2153 13.5872 L7.2438 13.5300 M7.2438 13.5300 L7.2724 13.5015 M7.2724 13.5015 L7.3295 13.4729 M7.3295 13.4729 L7.3867 13.4729 M7.5867 13.5586 L8.0438 13.5586 M8.0438 13.7300 L7.5867 13.7300 M8.3581 13.8729 L8.4724 13.8729 M8.4724 13.8729 L8.5295 13.8443 M8.5295 13.8443 L8.5581 13.8157 M8.5581 13.8157 L8.6153 13.7300 M8.6153 13.7300 L8.6438 13.6157 M8.6438 13.6157 L8.6438 13.3872 M8.6438 13.3872 L8.6153 13.3300 M8.6153 13.3300 L8.5867 13.3015 M8.5867 13.3015 L8.5295 13.2729 M8.5295 13.2729 L8.4153 13.2729 M8.4153 13.2729 L8.3581 13.3015 M8.3581 13.3015 L8.3295 13.3300 M8.3295 13.3300 L8.3010 13.3872 M8.3010 13.3872 L8.3010 13.5300 M8.3010 13.5300 L8.3295 13.5872 M8.3295 13.5872 L8.3581 13.6157 M8.3581 13.6157 L8.4153 13.6443 M8.4153 13.6443 L8.5295 13.6443 M8.5295 13.6443 L8.5867 13.6157 M8.5867 13.6157 L8.6153 13.5872 M8.6153 13.5872 L8.6438 13.5300 M8.9010 13.8729 L8.9010 13.4729 M8.9010 13.5300 L8.9295 13.5015 M8.9295 13.5015 L8.9867 13.4729 M8.9867 13.4729 L9.0724 13.4729 M9.0724 13.4729 L9.1295 13.5015 M9.1295 13.5015 L9.1581 13.5586 M9.1581 13.5586 L9.1581 13.8729 M9.1581 13.5586 L9.1867 13.5015 M9.1867 13.5015 L9.2438 13.4729 M9.2438 13.4729 L9.3295 13.4729 M9.3295 13.4729 L9.3867 13.5015 M9.3867 13.5015 L9.4153 13.5586 M9.4153 13.5586 L9.4153 13.8729 M9.7010 13.8729 L9.7010 13.4729 M9.7010 13.5300 L9.7295 13.5015 M9.7295 13.5015 L9.7867 13.4729 M9.7867 13.4729 L9.8724 13.4729 M9.8724 13.4729 L9.9295 13.5015 M9.9295 13.5015 L9.9581 13.5586 M9.9581 13.5586 L9.9581 13.8729 M9.9581 13.5586 L9.9867 13.5015 M9.9867 13.5015 L10.0438 13.4729 M10.0438 13.4729 L10.1295 13.4729 M10.1295 13.4729 L10.1867 13.5015 M10.1867 13.5015 L10.2153 13.5586 M10.2153 13.5586 L10.2153 13.8729 M15.5153 14.5729 L15.5153 13.9729 M15.8010 14.5729 L15.8010 13.9729 M15.8010 13.9729 L16.0010 14.4015 M16.0010 14.4015 L16.2010 13.9729 M16.2010 13.9729 L16.2010 14.5729 M16.4867 13.9729 L16.4867 14.4586 M16.4867 14.4586 L16.5153 14.5157 M16.5153 14.5157 L16.5438 14.5443 M16.5438 14.5443 L16.6010 14.5729 M16.6010 14.5729 L16.7153 14.5729 M16.7153 14.5729 L16.7724 14.5443 M16.7724 14.5443 L16.8010 14.5157 M16.8010 14.5157 L16.8295 14.4586 M16.8295 14.4586 L16.8295 13.9729 M17.7438 14.8015 L17.7153 14.7729 M17.7153 14.7729 L17.6581 14.6872 M17.6581 14.6872 L17.6295 14.6300 M17.6295 14.6300 L17.6010 14.5443 M17.6010 14.5443 L17.5724 14.4015 M17.5724 14.4015 L17.5724 14.2872 M17.5724 14.2872 L17.6010 14.1443 M17.6010 14.1443 L17.6295 14.0586 M17.6295 14.0586 L17.6581 14.0015 M17.6581 14.0015 L17.7153 13.9157 M17.7153 13.9157 L17.7438 13.8872 M18.2295 14.5443 L18.1724 14.5729 M18.1724 14.5729 L18.0581 14.5729 M18.0581 14.5729 L18.0010 14.5443 M18.0010 14.5443 L17.9724 14.5157 M17.9724 14.5157 L17.9438 14.4586 M17.9438 14.4586 L17.9438 14.2872 M17.9438 14.2872 L17.9724 14.2300 M17.9724 14.2300 L18.0010 14.2015 M18.0010 14.2015 L18.0581 14.1729 M18.0581 14.1729 L18.1724 14.1729 M18.1724 14.1729 L18.2295 14.2015 M18.7153 14.5443 L18.6581 14.5729 M18.6581 14.5729 L18.5438 14.5729 M18.5438 14.5729 L18.4867 14.5443 M18.4867 14.5443 L18.4581 14.4872 M18.4581 14.4872 L18.4581 14.2586 M18.4581 14.2586 L18.4867 14.2015 M18.4867 14.2015 L18.5438 14.1729 M18.5438 14.1729 L18.6581 14.1729 M18.6581 14.1729 L18.7153 14.2015 M18.7153 14.2015 L18.7438 14.2586 M18.7438 14.2586 L18.7438 14.3157 M18.7438 14.3157 L18.4581 14.3729 M19.0010 14.1729 L19.0010 14.5729 M19.0010 14.2300 L19.0295 14.2015 M19.0295 14.2015 L19.0867 14.1729 M19.0867 14.1729 L19.1724 14.1729 M19.1724 14.1729 L19.2295 14.2015 M19.2295 14.2015 L19.2581 14.2586 M19.2581 14.2586 L19.2581 14.5729 M19.4581 14.1729 L19.6867 14.1729 M19.5438 13.9729 L19.5438 14.4872 M19.5438 14.4872 L19.5724 14.5443 M19.5724 14.5443 L19.6295 14.5729 M19.6295 14.5729 L19.6867 14.5729 M19.8867 14.5729 L19.8867 14.1729 M19.8867 14.2872 L19.9153 14.2300 M19.9153 14.2300 L19.9438 14.2015 M19.9438 14.2015 L20.0010 14.1729 M20.0010 14.1729 L20.0581 14.1729 M20.4867 14.5443 L20.4295 14.5729 M20.4295 14.5729 L20.3153 14.5729 M20.3153 14.5729 L20.2581 14.5443 M20.2581 14.5443 L20.2295 14.4872 M20.2295 14.4872 L20.2295 14.2586 M20.2295 14.2586 L20.2581 14.2015 M20.2581 14.2015 L20.3153 14.1729 M20.3153 14.1729 L20.4295 14.1729 M20.4295 14.1729 L20.4867 14.2015 M20.4867 14.2015 L20.5153 14.2586 M20.5153 14.2586 L20.5153 14.3157 M20.5153 14.3157 L20.2295 14.3729 M20.7153 14.8015 L20.7438 14.7729 M20.7438 14.7729 L20.8010 14.6872 M20.8010 14.6872 L20.8295 14.6300 M20.8295 14.6300 L20.8581 14.5443 M20.8581 14.5443 L20.8867 14.4015 M20.8867 14.4015 L20.8867 14.2872 M20.8867 14.2872 L20.8581 14.1443 M20.8581 14.1443 L20.8295 14.0586 M20.8295 14.0586 L20.8010 14.0015 M20.8010 14.0015 L20.7438 13.9157 M20.7438 13.9157 L20.7153 13.8872 M4.5510 5.1850 L4.6510 5.2184 M4.6510 5.2184 L4.8176 5.2184 M4.8176 5.2184 L4.8843 5.1850 M4.8843 5.1850 L4.9176 5.1517 M4.9176 5.1517 L4.9510 5.0850 M4.9510 5.0850 L4.9510 5.0184 M4.9510 5.0184 L4.9176 4.9517 M4.9176 4.9517 L4.8843 4.9184 M4.8843 4.9184 L4.8176 4.8850 M4.8176 4.8850 L4.6843 4.8517 M4.6843 4.8517 L4.6176 4.8184 M4.6176 4.8184 L4.5843 4.7850 M4.5843 4.7850 L4.5510 4.7184 M4.5510 4.7184 L4.5510 4.6517 M4.5510 4.6517 L4.5843 4.5850 M4.5843 4.5850 L4.6176 4.5517 M4.6176 4.5517 L4.6843 4.5184 M4.6843 4.5184 L4.8510 4.5184 M4.8510 4.5184 L4.9510 4.5517 M5.1843 4.5184 L5.3510 5.2184 M5.3510 5.2184 L5.4843 4.7184 M5.4843 4.7184 L5.6176 5.2184 M5.6176 5.2184 L5.7843 4.5184 M6.0510 5.2184 L6.0510 4.5184 M6.0510 4.5184 L6.2176 4.5184 M6.2176 4.5184 L6.3176 4.5517 M6.3176 4.5517 L6.3843 4.6184 M6.3843 4.6184 L6.4176 4.6850 M6.4176 4.6850 L6.4510 4.8184 M6.4510 4.8184 L6.4510 4.9184 M6.4510 4.9184 L6.4176 5.0517 M6.4176 5.0517 L6.3843 5.1184 M6.3843 5.1184 L6.3176 5.1850 M6.3176 5.1850 L6.2176 5.2184 M6.2176 5.2184 L6.0510 5.2184 M11.0510 18.4517 L11.1510 18.4850 M11.1510 18.4850 L11.1843 18.5184 M11.1843 18.5184 L11.2176 18.5850 M11.2176 18.5850 L11.2176 18.6850 M11.2176 18.6850 L11.1843 18.7517 M11.1843 18.7517 L11.1510 18.7850 M11.1510 18.7850 L11.0843 18.8184 M11.0843 18.8184 L10.8176 18.8184 M10.8176 18.8184 L10.8176 18.1184 M10.8176 18.1184 L11.0510 18.1184 M11.0510 18.1184 L11.1176 18.1517 M11.1176 18.1517 L11.1510 18.1850 M11.1510 18.1850 L11.1843 18.2517 M11.1843 18.2517 L11.1843 18.3184 M11.1843 18.3184 L11.1510 18.3850 M11.1510 18.3850 L11.1176 18.4184 M11.1176 18.4184 L11.0510 18.4517 M11.0510 18.4517 L10.8176 18.4517 M11.4843 18.6184 L11.8176 18.6184 M11.4176 18.8184 L11.6510 18.1184 M11.6510 18.1184 L11.8843 18.8184 M12.0176 18.1184 L12.4176 18.1184 M12.2176 18.8184 L12.2176 18.1184 M12.6510 18.5517 L13.1843 18.5517 M12.9176 18.8184 L12.9176 18.2850 M14.3510 19.8517 L14.4510 19.8850 M14.4510 19.8850 L14.4843 19.9184 M14.4843 19.9184 L14.5176 19.9850 M14.5176 19.9850 L14.5176 20.0850 M14.5176 20.0850 L14.4843 20.1517 M14.4843 20.1517 L14.4510 20.1850 M14.4510 20.1850 L14.3843 20.2184 M14.3843 20.2184 L14.1176 20.2184 M14.1176 20.2184 L14.1176 19.5184 M14.1176 19.5184 L14.3510 19.5184 M14.3510 19.5184 L14.4176 19.5517 M14.4176 19.5517 L14.4510 19.5850 M14.4510 19.5850 L14.4843 19.6517 M14.4843 19.6517 L14.4843 19.7184 M14.4843 19.7184 L14.4510 19.7850 M14.4510 19.7850 L14.4176 19.8184 M14.4176 19.8184 L14.3510 19.8517 M14.3510 19.8517 L14.1176 19.8517 M14.7843 20.0184 L15.1176 20.0184 M14.7176 20.2184 L14.9510 19.5184 M14.9510 19.5184 L15.1843 20.2184 M15.3176 19.5184 L15.7176 19.5184 M15.5176 20.2184 L15.5176 19.5184 M15.9510 19.9517 L16.4843 19.9517 M17.7676 20.1517 L17.7343 20.1850 M17.7343 20.1850 L17.6343 20.2184 M17.6343 20.2184 L17.5676 20.2184 M17.5676 20.2184 L17.4676 20.1850 M17.4676 20.1850 L17.4010 20.1184 M17.4010 20.1184 L17.3676 20.0517 M17.3676 20.0517 L17.3343 19.9184 M17.3343 19.9184 L17.3343 19.8184 M17.3343 19.8184 L17.3676 19.6850 M17.3676 19.6850 L17.4010 19.6184 M17.4010 19.6184 L17.4676 19.5517 M17.4676 19.5517 L17.5676 19.5184 M17.5676 19.5184 L17.6343 19.5184 M17.6343 19.5184 L17.7343 19.5517 M17.7343 19.5517 L17.7676 19.5850 M18.0676 20.2184 L18.0676 19.5184 M18.0676 19.8517 L18.4676 19.8517 M18.4676 20.2184 L18.4676 19.5184 M19.1676 19.5517 L19.1010 19.5184 M19.1010 19.5184 L19.0010 19.5184 M19.0010 19.5184 L18.9010 19.5517 M18.9010 19.5517 L18.8343 19.6184 M18.8343 19.6184 L18.8010 19.6850 M18.8010 19.6850 L18.7676 19.8184 M18.7676 19.8184 L18.7676 19.9184 M18.7676 19.9184 L18.8010 20.0517 M18.8010 20.0517 L18.8343 20.1184 M18.8343 20.1184 L18.9010 20.1850 M18.9010 20.1850 L19.0010 20.2184 M19.0010 20.2184 L19.0676 20.2184 M19.0676 20.2184 L19.1676 20.1850 M19.1676 20.1850 L19.2010 20.1517 M19.2010 20.1517 L19.2010 19.9184 M19.2010 19.9184 L19.0676 19.9184 M19.5010 19.9517 L20.0343 19.9517 M19.7676 20.2184 L19.7676 19.6850 M21.0676 18.7517 L21.0343 18.7850 M21.0343 18.7850 L20.9343 18.8184 M20.9343 18.8184 L20.8676 18.8184 M20.8676 18.8184 L20.7676 18.7850 M20.7676 18.7850 L20.7010 18.7184 M20.7010 18.7184 L20.6676 18.6517 M20.6676 18.6517 L20.6343 18.5184 M20.6343 18.5184 L20.6343 18.4184 M20.6343 18.4184 L20.6676 18.2850 M20.6676 18.2850 L20.7010 18.2184 M20.7010 18.2184 L20.7676 18.1517 M20.7676 18.1517 L20.8676 18.1184 M20.8676 18.1184 L20.9343 18.1184 M20.9343 18.1184 L21.0343 18.1517 M21.0343 18.1517 L21.0676 18.1850 M21.3676 18.8184 L21.3676 18.1184 M21.3676 18.4517 L21.7676 18.4517 M21.7676 18.8184 L21.7676 18.1184 M22.4676 18.1517 L22.4010 18.1184 M22.4010 18.1184 L22.3010 18.1184 M22.3010 18.1184 L22.2010 18.1517 M22.2010 18.1517 L22.1343 18.2184 M22.1343 18.2184 L22.1010 18.2850 M22.1010 18.2850 L22.0676 18.4184 M22.0676 18.4184 L22.0676 18.5184 M22.0676 18.5184 L22.1010 18.6517 M22.1010 18.6517 L22.1343 18.7184 M22.1343 18.7184 L22.2010 18.7850 M22.2010 18.7850 L22.3010 18.8184 M22.3010 18.8184 L22.3676 18.8184 M22.3676 18.8184 L22.4676 18.7850 M22.4676 18.7850 L22.5010 18.7517 M22.5010 18.7517 L22.5010 18.5184 M22.5010 18.5184 L22.3676 18.5184 M22.8010 18.5517 L23.3343 18.5517 M22.9910 15.0400 L24.8110 15.0400 M22.9910 15.0900 L22.9910 15.0400 M22.9910 18.1600 L22.9910 18.1100 M24.8110 15.0400 L24.8110 15.0900 M24.8110 16.2100 L24.8110 16.9900 M24.8110 18.1100 L24.8110 18.1600 M24.8110 18.1600 L22.9910 18.1600 M19.2410 11.6922 L19.2410 11.9078 M19.9610 11.6922 L19.9610 11.9078 M20.8410 16.7078 L20.8410 16.4922 M21.5610 16.7078 L21.5610 16.4922 M6.7088 12.1400 L6.4931 12.1400 M6.7088 12.8600 L6.4931 12.8600 M20.8010 19.0000 L23.2010 19.0000 M20.8010 21.4000 L20.8010 19.0000 M23.2010 19.0000 L23.2010 21.4000 M23.2010 21.4000 L20.8010 21.4000 M6.3910 11.5600 L6.3910 11.3850 M6.6877 8.8400 L7.0660 8.8400 M7.0660 11.5600 L6.3910 11.5600 M8.9360 8.8400 L9.6110 8.8400 M9.6110 8.8400 L9.6110 9.0150 M9.6110 11.3850 L9.6110 11.5600 M9.6110 11.5600 L8.9360 11.5600 M11.6010 9.7350 L13.8860 9.7350 M13.8860 8.2650 L11.6010 8.2650 M13.8860 9.7350 L13.8860 8.2650 M3.5960 3.6700 L3.5960 3.0350 M4.2310 3.6700 L3.5960 3.6700 M27.6897 8.3900 L29.1122 8.3900 M27.6897 10.2100 L29.1122 10.2100 M10.2410 11.1922 L10.2410 11.4078 M10.9610 11.1922 L10.9610 11.4078 M14.1010 20.4000 L16.5010 20.4000 M14.1010 22.8000 L14.1010 20.4000 M16.5010 20.4000 L16.5010 22.8000 M16.5010 22.8000 L14.1010 22.8000 M22.5546 3.1200 L22.2473 3.1200 M22.5546 3.8800 L22.2473 3.8800 M14.4410 16.0922 L14.4410 16.3078 M15.1610 16.0922 L15.1610 16.3078 M26.1210 17.6464 L26.1210 17.9536 M26.8810 17.6464 L26.8810 17.9536 M27.2660 14.6000 L27.2660 16.8850 M27.2660 16.8850 L28.7360 16.8850 M28.7360 16.8850 L28.7360 14.6000 M15.7088 12.6400 L15.4931 12.6400 M15.7088 13.3600 L15.4931 13.3600 M22.2473 1.9200 L22.5546 1.9200 M22.2473 2.6800 L22.5546 2.6800 M28.1210 12.1536 L28.1210 11.8464 M28.8810 12.1536 L28.8810 11.8464 M21.8410 5.6922 L21.8410 5.9078 M22.5610 5.6922 L22.5610 5.9078 M15.3910 12.0600 L15.3910 11.8850 M15.6877 9.3400 L16.0660 9.3400 M16.0660 12.0600 L15.3910 12.0600 M17.9360 9.3400 L18.6110 9.3400 M18.6110 9.3400 L18.6110 9.5150 M18.6110 11.8850 L18.6110 12.0600 M18.6110 12.0600 L17.9360 12.0600 M17.5010 20.4000 L19.9010 20.4000 M17.5010 22.8000 L17.5010 20.4000 M19.9010 20.4000 L19.9010 22.8000 M19.9010 22.8000 L17.5010 22.8000 M13.2210 16.0464 L13.2210 16.3536 M13.9810 16.0464 L13.9810 16.3536 M13.8510 0.1500 L13.8510 0.3500 M13.8510 0.1500 L14.6010 0.1500 M20.1510 0.1500 L20.1510 0.3500 M20.7410 5.6922 L20.7410 5.9078 M21.4610 5.6922 L21.4610 5.9078 M17.4010 17.1000 L17.4010 19.0600 M17.4010 19.0600 L18.6010 19.0600 M18.6010 17.1000 L18.6010 19.0600 M12.5546 7.2200 L12.2473 7.2200 M12.5546 7.9800 L12.2473 7.9800 M26.1410 15.9078 L26.1410 15.6922 M26.8610 15.9078 L26.8610 15.6922 M23.8410 10.4400 L25.3610 10.4400 M23.8410 10.4900 L23.8410 10.4400 M23.8410 12.3900 L23.8410 11.6100 M23.8410 13.5600 L23.8410 13.5100 M25.3610 10.4400 L25.3610 11.4400 M25.3610 12.5600 L25.3610 13.5600 M25.3610 13.5600 L23.8410 13.5600 M12.0210 16.3536 L12.0210 16.0464 M12.7810 16.3536 L12.7810 16.0464 M27.0410 12.1078 L27.0410 11.8922 M27.7610 12.1078 L27.7610 11.8922 M20.3410 11.6922 L20.3410 11.9078 M21.0610 11.6922 L21.0610 11.9078 M11.3410 11.1922 L11.3410 11.4078 M12.0610 11.1922 L12.0610 11.4078 M21.5410 12.0922 L21.5410 12.3078 M22.2610 12.0922 L22.2610 12.3078 M10.8010 19.0000 L13.2010 19.0000 M10.8010 21.4000 L10.8010 19.0000 M13.2010 19.0000 L13.2010 21.4000 M13.2010 21.4000 L10.8010 21.4000","silkB":"M21.6010 25.4517 L21.6343 25.4850 M21.6343 25.4850 L21.7343 25.5184 M21.7343 25.5184 L21.8010 25.5184 M21.8010 25.5184 L21.9010 25.4850 M21.9010 25.4850 L21.9676 25.4184 M21.9676 25.4184 L22.0010 25.3517 M22.0010 25.3517 L22.0343 25.2184 M22.0343 25.2184 L22.0343 25.1184 M22.0343 25.1184 L22.0010 24.9850 M22.0010 24.9850 L21.9676 24.9184 M21.9676 24.9184 L21.9010 24.8517 M21.9010 24.8517 L21.8010 24.8184 M21.8010 24.8184 L21.7343 24.8184 M21.7343 24.8184 L21.6343 24.8517 M21.6343 24.8517 L21.6010 24.8850 M20.9010 25.5184 L21.1343 25.1850 M21.3010 25.5184 L21.3010 24.8184 M21.3010 24.8184 L21.0343 24.8184 M21.0343 24.8184 L20.9676 24.8517 M20.9676 24.8517 L20.9343 24.8850 M20.9343 24.8850 L20.9010 24.9517 M20.9010 24.9517 L20.9010 25.0517 M20.9010 25.0517 L20.9343 25.1184 M20.9343 25.1184 L20.9676 25.1517 M20.9676 25.1517 L21.0343 25.1850 M21.0343 25.1850 L21.3010 25.1850 M20.6343 24.8850 L20.6010 24.8517 M20.6010 24.8517 L20.5343 24.8184 M20.5343 24.8184 L20.3676 24.8184 M20.3676 24.8184 L20.3010 24.8517 M20.3010 24.8517 L20.2676 24.8850 M20.2676 24.8850 L20.2343 24.9517 M20.2343 24.9517 L20.2343 25.0184 M20.2343 25.0184 L20.2676 25.1184 M20.2676 25.1184 L20.6676 25.5184 M20.6676 25.5184 L20.2343 25.5184 M19.8010 24.8184 L19.7343 24.8184 M19.7343 24.8184 L19.6676 24.8517 M19.6676 24.8517 L19.6343 24.8850 M19.6343 24.8850 L19.6010 24.9517 M19.6010 24.9517 L19.5676 25.0850 M19.5676 25.0850 L19.5676 25.2517 M19.5676 25.2517 L19.6010 25.3850 M19.6010 25.3850 L19.6343 25.4517 M19.6343 25.4517 L19.6676 25.4850 M19.6676 25.4850 L19.7343 25.5184 M19.7343 25.5184 L19.8010 25.5184 M19.8010 25.5184 L19.8676 25.4850 M19.8676 25.4850 L19.9010 25.4517 M19.9010 25.4517 L19.9343 25.3850 M19.9343 25.3850 L19.9676 25.2517 M19.9676 25.2517 L19.9676 25.0850 M19.9676 25.0850 L19.9343 24.9517 M19.9343 24.9517 L19.9010 24.8850 M19.9010 24.8850 L19.8676 24.8517 M19.8676 24.8517 L19.8010 24.8184 M19.3343 24.8184 L18.9010 24.8184 M18.9010 24.8184 L19.1343 25.0850 M19.1343 25.0850 L19.0343 25.0850 M19.0343 25.0850 L18.9676 25.1184 M18.9676 25.1184 L18.9343 25.1517 M18.9343 25.1517 L18.9010 25.2184 M18.9010 25.2184 L18.9010 25.3850 M18.9010 25.3850 L18.9343 25.4517 M18.9343 25.4517 L18.9676 25.4850 M18.9676 25.4850 L19.0343 25.5184 M19.0343 25.5184 L19.2343 25.5184 M19.2343 25.5184 L19.3010 25.4850 M19.3010 25.4850 L19.3343 25.4517 M18.6343 24.8850 L18.6010 24.8517 M18.6010 24.8517 L18.5343 24.8184 M18.5343 24.8184 L18.3676 24.8184 M18.3676 24.8184 L18.3010 24.8517 M18.3010 24.8517 L18.2676 24.8850 M18.2676 24.8850 L18.2343 24.9517 M18.2343 24.9517 L18.2343 25.0184 M18.2343 25.0184 L18.2676 25.1184 M18.2676 25.1184 L18.6676 25.5184 M18.6676 25.5184 L18.2343 25.5184 M17.4010 25.2517 L16.8676 25.2517 M17.1343 25.5184 L17.1343 24.9850 M16.0343 25.4850 L15.9676 25.5184 M15.9676 25.5184 L15.8343 25.5184 M15.8343 25.5184 L15.7676 25.4850 M15.7676 25.4850 L15.7343 25.4184 M15.7343 25.4184 L15.7343 25.3850 M15.7343 25.3850 L15.7676 25.3184 M15.7676 25.3184 L15.8343 25.2850 M15.8343 25.2850 L15.9343 25.2850 M15.9343 25.2850 L16.0010 25.2517 M16.0010 25.2517 L16.0343 25.1850 M16.0343 25.1850 L16.0343 25.1517 M16.0343 25.1517 L16.0010 25.0850 M16.0010 25.0850 L15.9343 25.0517 M15.9343 25.0517 L15.8343 25.0517 M15.8343 25.0517 L15.7676 25.0850 M15.4343 25.5184 L15.4343 25.0517 M15.4343 24.8184 L15.4676 24.8517 M15.4676 24.8517 L15.4343 24.8850 M15.4343 24.8850 L15.4010 24.8517 M15.4010 24.8517 L15.4343 24.8184 M15.4343 24.8184 L15.4343 24.8850 M14.8010 25.5184 L14.8010 24.8184 M14.8010 25.4850 L14.8676 25.5184 M14.8676 25.5184 L15.0010 25.5184 M15.0010 25.5184 L15.0676 25.4850 M15.0676 25.4850 L15.1010 25.4517 M15.1010 25.4517 L15.1343 25.3850 M15.1343 25.3850 L15.1343 25.1850 M15.1343 25.1850 L15.1010 25.1184 M15.1010 25.1184 L15.0676 25.0850 M15.0676 25.0850 L15.0010 25.0517 M15.0010 25.0517 L14.8676 25.0517 M14.8676 25.0517 L14.8010 25.0850 M14.2010 25.4850 L14.2676 25.5184 M14.2676 25.5184 L14.4010 25.5184 M14.4010 25.5184 L14.4676 25.4850 M14.4676 25.4850 L14.5010 25.4184 M14.5010 25.4184 L14.5010 25.1517 M14.5010 25.1517 L14.4676 25.0850 M14.4676 25.0850 L14.4010 25.0517 M14.4010 25.0517 L14.2676 25.0517 M14.2676 25.0517 L14.2010 25.0850 M14.2010 25.0850 L14.1676 25.1517 M14.1676 25.1517 L14.1676 25.2184 M14.1676 25.2184 L14.5010 25.2850 M13.2343 25.5184 L13.3010 25.4850 M13.3010 25.4850 L13.3343 25.4517 M13.3343 25.4517 L13.3676 25.3850 M13.3676 25.3850 L13.3676 25.1850 M13.3676 25.1850 L13.3343 25.1184 M13.3343 25.1184 L13.3010 25.0850 M13.3010 25.0850 L13.2343 25.0517 M13.2343 25.0517 L13.1343 25.0517 M13.1343 25.0517 L13.0676 25.0850 M13.0676 25.0850 L13.0343 25.1184 M13.0343 25.1184 L13.0010 25.1850 M13.0010 25.1850 L13.0010 25.3850 M13.0010 25.3850 L13.0343 25.4517 M13.0343 25.4517 L13.0676 25.4850 M13.0676 25.4850 L13.1343 25.5184 M13.1343 25.5184 L13.2343 25.5184 M12.4010 25.0517 L12.4010 25.5184 M12.7010 25.0517 L12.7010 25.4184 M12.7010 25.4184 L12.6676 25.4850 M12.6676 25.4850 L12.6010 25.5184 M12.6010 25.5184 L12.5010 25.5184 M12.5010 25.5184 L12.4343 25.4850 M12.4343 25.4850 L12.4010 25.4517 M12.1676 25.0517 L11.9010 25.0517 M12.0676 24.8184 L12.0676 25.4184 M12.0676 25.4184 L12.0343 25.4850 M12.0343 25.4850 L11.9676 25.5184 M11.9676 25.5184 L11.9010 25.5184 M20.9010 24.2093 L20.9010 23.3093 M20.9010 24.1665 L20.9867 24.2093 M20.9867 24.2093 L21.1581 24.2093 M21.1581 24.2093 L21.2438 24.1665 M21.2438 24.1665 L21.2867 24.1236 M21.2867 24.1236 L21.3295 24.0379 M21.3295 24.0379 L21.3295 23.7808 M21.3295 23.7808 L21.2867 23.6951 M21.2867 23.6951 L21.2438 23.6522 M21.2438 23.6522 L21.1581 23.6093 M21.1581 23.6093 L20.9867 23.6093 M20.9867 23.6093 L20.9010 23.6522 M20.4724 24.2093 L20.4724 23.6093 M20.4724 23.3093 L20.5153 23.3522 M20.5153 23.3522 L20.4724 23.3951 M20.4724 23.3951 L20.4295 23.3522 M20.4295 23.3522 L20.4724 23.3093 M20.4724 23.3093 L20.4724 23.3951 M20.0867 24.1665 L20.0010 24.2093 M20.0010 24.2093 L19.8295 24.2093 M19.8295 24.2093 L19.7438 24.1665 M19.7438 24.1665 L19.7010 24.0808 M19.7010 24.0808 L19.7010 24.0379 M19.7010 24.0379 L19.7438 23.9522 M19.7438 23.9522 L19.8295 23.9093 M19.8295 23.9093 L19.9581 23.9093 M19.9581 23.9093 L20.0438 23.8665 M20.0438 23.8665 L20.0867 23.7808 M20.0867 23.7808 L20.0867 23.7379 M20.0867 23.7379 L20.0438 23.6522 M20.0438 23.6522 L19.9581 23.6093 M19.9581 23.6093 L19.8295 23.6093 M19.8295 23.6093 L19.7438 23.6522 M18.9295 24.1665 L19.0153 24.2093 M19.0153 24.2093 L19.1867 24.2093 M19.1867 24.2093 L19.2724 24.1665 M19.2724 24.1665 L19.3153 24.1236 M19.3153 24.1236 L19.3581 24.0379 M19.3581 24.0379 L19.3581 23.7808 M19.3581 23.7808 L19.3153 23.6951 M19.3153 23.6951 L19.2724 23.6522 M19.2724 23.6522 L19.1867 23.6093 M19.1867 23.6093 L19.0153 23.6093 M19.0153 23.6093 L18.9295 23.6522 M18.6295 23.6093 L18.4153 24.2093 M18.2010 23.6093 L18.4153 24.2093 M18.4153 24.2093 L18.5010 24.4236 M18.5010 24.4236 L18.5438 24.4665 M18.5438 24.4665 L18.6295 24.5093 M17.8581 24.2093 L17.8581 23.3093 M17.8581 23.6522 L17.7724 23.6093 M17.7724 23.6093 L17.6010 23.6093 M17.6010 23.6093 L17.5153 23.6522 M17.5153 23.6522 L17.4724 23.6951 M17.4724 23.6951 L17.4295 23.7808 M17.4295 23.7808 L17.4295 24.0379 M17.4295 24.0379 L17.4724 24.1236 M17.4724 24.1236 L17.5153 24.1665 M17.5153 24.1665 L17.6010 24.2093 M17.6010 24.2093 L17.7724 24.2093 M17.7724 24.2093 L17.8581 24.1665 M16.9153 24.2093 L17.0010 24.1665 M17.0010 24.1665 L17.0438 24.1236 M17.0438 24.1236 L17.0867 24.0379 M17.0867 24.0379 L17.0867 23.7808 M17.0867 23.7808 L17.0438 23.6951 M17.0438 23.6951 L17.0010 23.6522 M17.0010 23.6522 L16.9153 23.6093 M16.9153 23.6093 L16.7867 23.6093 M16.7867 23.6093 L16.7010 23.6522 M16.7010 23.6522 L16.6581 23.6951 M16.6581 23.6951 L16.6153 23.7808 M16.6153 23.7808 L16.6153 24.0379 M16.6153 24.0379 L16.6581 24.1236 M16.6581 24.1236 L16.7010 24.1665 M16.7010 24.1665 L16.7867 24.2093 M16.7867 24.2093 L16.9153 24.2093 M16.2295 24.2093 L16.2295 23.6093 M16.2295 23.3093 L16.2724 23.3522 M16.2724 23.3522 L16.2295 23.3951 M16.2295 23.3951 L16.1867 23.3522 M16.1867 23.3522 L16.2295 23.3093 M16.2295 23.3093 L16.2295 23.3951 M15.2010 23.6093 L14.9867 24.2093 M14.9867 24.2093 L14.7724 23.6093 M14.2581 23.3093 L14.1724 23.3093 M14.1724 23.3093 L14.0867 23.3522 M14.0867 23.3522 L14.0438 23.3951 M14.0438 23.3951 L14.0010 23.4808 M14.0010 23.4808 L13.9581 23.6522 M13.9581 23.6522 L13.9581 23.8665 M13.9581 23.8665 L14.0010 24.0379 M14.0010 24.0379 L14.0438 24.1236 M14.0438 24.1236 L14.0867 24.1665 M14.0867 24.1665 L14.1724 24.2093 M14.1724 24.2093 L14.2581 24.2093 M14.2581 24.2093 L14.3438 24.1665 M14.3438 24.1665 L14.3867 24.1236 M14.3867 24.1236 L14.4295 24.0379 M14.4295 24.0379 L14.4724 23.8665 M14.4724 23.8665 L14.4724 23.6522 M14.4724 23.6522 L14.4295 23.4808 M14.4295 23.4808 L14.3867 23.3951 M14.3867 23.3951 L14.3438 23.3522 M14.3438 23.3522 L14.2581 23.3093 M13.5724 24.1236 L13.5295 24.1665 M13.5295 24.1665 L13.5724 24.2093 M13.5724 24.2093 L13.6153 24.1665 M13.6153 24.1665 L13.5724 24.1236 M13.5724 24.1236 L13.5724 24.2093 M12.7581 23.6093 L12.7581 24.2093 M12.9724 23.2665 L13.1867 23.9093 M13.1867 23.9093 L12.6295 23.9093 M4.0010 16.5000 L4.0010 17.7000 M4.6010 17.1000 L3.4010 17.1000 M7.3380 16.4090 L7.5460 16.9100 M7.5460 8.4900 L7.3380 8.9910 M7.5460 16.9100 L7.7790 17.3990 M7.7790 8.0010 L7.5460 8.4900 M7.7790 17.3990 L8.0380 17.8750 M8.0380 7.5250 L7.7790 8.0010 M8.0380 17.8750 L8.3210 18.3370 M8.3210 7.0630 L8.0380 7.5250 M8.3210 18.3370 L8.6280 18.7840 M8.6280 6.6160 L8.3210 7.0630 M8.6280 18.7840 L8.9580 19.2130 M8.9580 6.1870 L8.6280 6.6160 M8.9580 19.2130 L9.3090 19.6260 M9.3090 5.7740 L8.9580 6.1870 M9.3090 19.6260 L9.6820 20.0190 M9.6820 5.3810 L9.3090 5.7740 M9.6820 20.0190 L10.0750 20.3920 M10.0750 5.0080 L9.6820 5.3810 M10.0750 20.3920 L10.4880 20.7430 M10.4880 4.6570 L10.0750 5.0080 M10.4880 20.7430 L10.9170 21.0730 M10.9170 4.3270 L10.4880 4.6570 M10.9170 21.0730 L11.3640 21.3800 M11.3640 4.0200 L10.9170 4.3270 M11.3640 21.3800 L11.8260 21.6630 M11.8260 3.7370 L11.3640 4.0200 M11.8260 21.6630 L12.3020 21.9220 M12.3020 3.4780 L11.8260 3.7370 M12.3020 21.9220 L12.7910 22.1550 M12.7910 3.2450 L12.3020 3.4780 M12.7910 22.1550 L13.2920 22.3630 M13.2920 3.0370 L12.7910 3.2450 M13.2920 22.3630 L13.8030 22.5430 M13.8030 2.8570 L13.2920 3.0370 M13.8030 22.5430 L14.3220 22.6970 M14.3220 2.7030 L13.8030 2.8570 M14.3220 22.6970 L14.8490 22.8240 M14.8490 2.5760 L14.3220 2.7030 M14.8490 22.8240 L15.3820 22.9230 M15.3820 2.4770 L14.8490 2.5760 M15.3820 22.9230 L15.9190 22.9930 M15.9190 2.4070 L15.3820 2.4770 M15.9190 22.9930 L16.4590 23.0360 M16.4590 2.3640 L15.9190 2.4070 M16.4590 23.0360 L17.0010 23.0500 M17.0010 2.3500 L16.4590 2.3640 M17.0010 23.0500 L17.5430 23.0360 M17.5430 2.3640 L17.0010 2.3500 M17.5430 23.0360 L18.0830 22.9930 M18.0830 2.4070 L17.5430 2.3640 M18.0830 22.9930 L18.6200 22.9230 M18.6200 2.4770 L18.0830 2.4070 M18.6200 22.9230 L19.1530 22.8240 M19.1530 2.5760 L18.6200 2.4770 M19.1530 22.8240 L19.6800 22.6970 M19.6800 2.7030 L19.1530 2.5760 M19.6800 22.6970 L20.1990 22.5430 M20.1990 2.8570 L19.6800 2.7030 M20.1990 22.5430 L20.7100 22.3630 M20.7100 3.0370 L20.1990 2.8570 M20.7100 22.3630 L21.2110 22.1550 M21.2110 3.2450 L20.7100 3.0370 M21.2110 22.1550 L21.7000 21.9220 M21.7000 3.4780 L21.2110 3.2450 M21.7000 21.9220 L22.1760 21.6630 M22.1760 3.7370 L21.7000 3.4780 M22.1760 21.6630 L22.6380 21.3800 M22.6380 4.0200 L22.1760 3.7370 M22.6380 21.3800 L23.0850 21.0730 M23.0850 4.3270 L22.6380 4.0200 M23.0850 21.0730 L23.5140 20.7430 M23.5140 4.6570 L23.0850 4.3270 M23.5140 20.7430 L23.9270 20.3920 M23.9270 5.0080 L23.5140 4.6570 M23.9270 20.3920 L24.3200 20.0190 M24.3200 5.3810 L23.9270 5.0080 M24.3200 20.0190 L24.6930 19.6260 M24.6930 5.7740 L24.3200 5.3810 M24.6930 19.6260 L25.0440 19.2130 M25.0440 6.1870 L24.6930 5.7740 M25.0440 19.2130 L25.3740 18.7840 M25.3740 6.6160 L25.0440 6.1870 M25.3740 18.7840 L25.6810 18.3370 M25.6810 7.0630 L25.3740 6.6160 M25.6810 18.3370 L25.9640 17.8750 M25.9640 7.5250 L25.6810 7.0630 M25.9640 17.8750 L26.2230 17.3990 M26.2230 8.0010 L25.9640 7.5250 M26.2230 17.3990 L26.4560 16.9100 M26.4560 8.4900 L26.2230 8.0010 M26.4560 16.9100 L26.6640 16.4090 M26.6640 8.9910 L26.4560 8.4900 M30.0010 16.5000 L30.0010 17.7000 M30.6010 17.1000 L29.4010 17.1000","silkOrigin":[100.0,106.8]};
+const C = { x: 117, y: 117 };
+
+// ---------------------------------------------------------------- what goes where
+const BUILDS = {
+  cr2032: { label: 'CR2032', note: '<b>CR2032 build:</b> primary coin cell in the clip, charger left off. Never fit the charger parts on a board that takes a CR2032.' },
+  lir2032: { label: 'LIR2032', note: '<b>LIR2032 build:</b> rechargeable coin cell in the clip, charger fitted with R7 = 47 k (~21 mA). Mark the board so a CR2032 never goes in it: charging a primary cell can make it leak or catch fire.' },
+  lipo: { label: 'LiPo', note: '<b>LiPo build:</b> protected 1S pouch cell (e.g. 150 mAh) on the bottom, no clip, charger fitted with R7 = 10 k (100 mA). Charge with 5 V on CHG+ / CHG− (TP3 / TP4); the red LED is lit while charging.' },
+};
+function makeGroups(build) {
+  const chg = build !== 'cr2032';
+  const G = [
+    { id: 'u1', sec: 'pol', refs: ['U1'], val: 'BC15M module', pkg: 'LGA-36 6.0 × 9.6 mm', mpn: 'Fanstel BC15M · Mouser 308-BC15M', pol: true,
+      orient: 'Antenna end hangs off the flat edge (top). The shield can sits on the board; the bare antenna strip is past the edge with nothing under it. Pad A1 is top-left.',
+      note: 'LGA: needs paste on every pad and reflow. Line its edges up with the silkscreen corner marks and set it down flat with a light tap (don\'t squash the paste). It pulls itself into place when the solder melts, so being within about 0.2 mm is enough.' },
+    { id: 'imu', sec: 'pol', refs: ['U5', 'U3'], val: 'LSM6DSV320X IMU', pkg: 'LGA-14 3.0 × 2.5 mm, 0.5 mm pitch', mpn: 'ST LSM6DSV320XTR', pol: true,
+      orient: 'Pin-1 dot on the chip to the top-left (toward the flat edge, on the left). Both IMUs face the same way: U5 at the centre, U3 at r = 9 mm on the left.',
+      note: 'Smallest pitch on the board. Get the rotation square to the silkscreen corner marks first; an offset of up to about 0.15 mm corrects itself when the solder melts. Set it straight down, and if you need another go, lift and re-place instead of sliding it through the paste.' },
+    { id: 'u2', sec: 'pol', refs: ['U2'], val: 'MCP1700 3.0 V LDO', pkg: 'SOT-23', mpn: 'Microchip MCP1700T-3002E/TT', pol: true,
+      orient: 'The single pin (VIN, pad 3) points right, toward C22. Two pins (GND top, VOUT bottom) on the left.',
+      note: build === 'cr2032'
+        ? '<b>If the MCP1700 hasn\'t arrived:</b> leave U2 off and link pad 3 (VIN, right) to pad 2 (VOUT, bottom-left) with a short wire after reflow. Keep clear of pad 1 (GND). Only on this CR2032 build.'
+        : '<b>Must be fitted on this build.</b> The cell reaches 4.2 V, above the 3.6 V the nRF54L15 and IMUs can take, so no bridge in place of U2.' },
+    { id: 'd1', sec: 'pol', refs: ['D1'], val: 'Green LED', pkg: '0603', mpn: 'Lite-On LTST-C191KGKT', pol: true,
+      orient: 'Cathode to the right (pad 1, to GND), anode to the left toward R5.',
+      note: 'On the LTST-C191KGKT the cathode is the end with the T-shaped mark on the underside (checked with a meter). That end goes right, toward U5.' },
+  ];
+  if (chg) G.push(
+    { id: 'u4', sec: 'pol', refs: ['U4'], val: 'MCP73831 Li-ion charger', pkg: 'SOT-23-5', mpn: 'Microchip MCP73831T-2ACI/OT', pol: true,
+      orient: 'Three pins on the left, two on the right. Pin 1 (STAT) is top-left.' },
+    { id: 'd2', sec: 'pol', refs: ['D2'], val: 'Red LED (charging)', pkg: '0603', mpn: 'Lite-On LTST-C191KRKT', pol: true,
+      orient: 'Vertical, right of U4. Cathode (T mark underneath) down, toward U4\'s STAT side; anode up toward R8.' },
+    { id: 'd3', sec: 'pol', refs: ['D3'], val: 'ESD5Z 5 V TVS', pkg: 'SOD-523', mpn: 'onsemi ESD5Z5.0T1G', pol: true,
+      orient: 'Vertical, above TP3. Cathode band down (pad 1, to CHG+ 5 V), toward the charge pads.' },
+  );
+  G.push(
+    { id: 'c22', sec: 'pass', refs: ['C22'], val: '100 µF', pkg: '1206', mpn: 'Samsung CL31A107MQHNNNE', orient: 'Horizontal, right of U2.' },
+    { id: 'c1', sec: 'pass', refs: ['C1'], val: '10 µF', pkg: '0402', mpn: 'Samsung CL05A106MQ5NUNC' },
+    { id: 'c14', sec: 'pass', refs: chg ? ['C14', 'C13'] : ['C14'], val: '4.7 µF', pkg: '0402', mpn: 'Samsung CL05A475MP5NRNC' },
+    { id: 'c1u', sec: 'pass', refs: ['C11', 'C16', 'C17', 'C21'], val: '1 µF', pkg: '0402', mpn: 'Samsung CL05A105KA5NQNC' },
+    { id: 'c100n', sec: 'pass', refs: ['C2', 'C10', 'C12', 'C18', 'C19', 'C20'], val: '100 nF', pkg: '0402', mpn: 'Samsung CL05B104KO5NNNC' },
+    { id: 'r10m', sec: 'pass', refs: ['R3', 'R4'], val: '10 MΩ', pkg: '0402', mpn: 'Yageo RC0402FR-0710ML', orient: 'Marked 1006 or 10M on top (or unmarked). Battery divider: not 1 MΩ.' },
+    { id: 'r100k', sec: 'pass', refs: chg ? ['R10', 'R9'] : ['R10'], val: '100 kΩ', pkg: '0402', mpn: 'Yageo RC0402FR-07100KL', orient: chg ? 'R9 + R10 divide the 5 V charger input for charger detect.' : undefined },
+  );
+  if (build === 'lir2032') G.push({ id: 'r7', sec: 'pass', refs: ['R7'], val: '47 kΩ', pkg: '0402', mpn: 'Yageo RC0402FR-0747KL', orient: 'Charge current 1000 V / 47 k ≈ 21 mA for a ~40 mAh LIR2032.' });
+  if (build === 'lipo') G.push({ id: 'r7', sec: 'pass', refs: ['R7'], val: '10 kΩ', pkg: '0402', mpn: 'Yageo RC0402FR-0710KL', orient: 'Charge current 1000 V / 10 k = 100 mA for a 150 mAh cell. Scale it to ~0.7C for other cells.' });
+  G.push({ id: 'r1k', sec: 'pass', refs: chg ? ['R5', 'R8'] : ['R5'], val: '1 kΩ', pkg: '0402', mpn: 'Yageo RC0402FR-071KL', orient: chg ? 'R5 next to D1, R8 above D2: the two LED resistors.' : 'LED resistor, next to D1.' });
+  if (build !== 'lipo') G.push(
+    { id: 'bt1', sec: 'bot', refs: ['BT1'], val: build === 'lir2032' ? 'LIR2032 clip' : 'CR2032 clip', pkg: 'BAT-HLD-003-SMT', mpn: 'TE/Linx BAT-HLD-003-SMT', pol: true,
+      orient: 'Bottom side. The open end faces the flat edge (toward the module) so the cell slides in from there. Solder the two tabs left and right.',
+      note: 'The round Ø14 mm pad is the cell\'s negative contact: no paste, no blob. On ENIG leave it as it is.' });
+  else G.push(
+    { id: 'bt1', sec: 'dnp', refs: ['BT1'], val: 'Coin cell clip', pkg: 'not fitted', dnp: true,
+      orient: 'LiPo leads instead: + to TP1 (BAT+) or a clip tab pad, − to TP2 (BAT−) or the round pad\'s edge. Use a protected cell, put Kapton over the bottom of the board first, and centre the cell 2.5 mm below the board centre like the coin cell.' });
+  if (!chg) G.push({ id: 'dnp', sec: 'dnp', refs: ['U4', 'R7', 'R8', 'R9', 'C13', 'D2', 'D3'], val: 'Li-ion charger', pkg: 'not fitted', dnp: true,
+    orient: 'Only for the LIR2032 or LiPo builds. <b>Never fit with a CR2032 in the clip.</b>' });
+  G.push({ id: 'nopart', sec: 'dnp', refs: ['J2', 'TP1', 'TP2', 'TP3', 'TP4'], val: 'Tag-Connect + test pads', pkg: 'no part', dnp: true,
+    orient: 'J2 is the TC2030 programming footprint: keep its three holes free of solder and flux. TP1–TP4 are BAT+, BAT−, CHG+ and CHG− pads' + (build === 'lipo' ? '; the LiPo leads go on TP1 and TP2.' : '.') });
+  return G;
+}
+const BOTTOM_STEP = {
+  cr2032: '<b>Bottom:</b> iron-solder the battery clip\'s two tabs. Leave the round pad under it flat.',
+  lir2032: '<b>Bottom:</b> iron-solder the battery clip\'s two tabs. Leave the round pad under it flat. Label the board LIR2032 only.',
+  lipo: '<b>Battery:</b> test the board from a bench supply first, then Kapton over the bottom and solder the LiPo leads: + to TP1, − to TP2.',
+};
+const BODY = { // package body size in mm, local frame (rot 0)
+  C_0402_1005Metric: [1.0, 0.5], R_0402_1005Metric: [1.0, 0.5], LED_0603_1608Metric: [1.6, 0.8], C_1206_3216Metric: [3.2, 1.6],
+  'SOT-23': [1.3, 2.9], 'SOT-23-5': [1.6, 2.9], D_SOD_523: [1.2, 0.8], 'D_SOD-523': [1.2, 0.8],
+  'LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y': [3.0, 2.5], Fanstel_BC15M: [6.0, 9.6],
+};
+
+const byRef = Object.fromEntries(DATA.fps.map((f) => [f.ref, f]));
+let build = 'cr2032';
+try { build = localStorage.getItem('discyboi-v4-build') || 'cr2032'; } catch {}
+if (!BUILDS[build]) build = 'cr2032';
+let GROUPS = [];
+let groupOf = {};
+function setBuild(b) {
+  build = b;
+  try { localStorage.setItem('discyboi-v4-build', b); } catch {}
+  GROUPS = makeGroups(b);
+  groupOf = {};
+  GROUPS.forEach((g) => g.refs.forEach((r) => (groupOf[r] = g)));
+  if (selected && !GROUPS.some((g) => g.id === selected)) selected = null;
+  document.querySelectorAll('[data-build]').forEach((btn) => btn.setAttribute('aria-pressed', btn.dataset.build === b ? 'true' : 'false'));
+  document.getElementById('buildnote').innerHTML = BUILDS[b].note;
+  document.getElementById('step-bottom').innerHTML = BOTTOM_STEP[b];
+}
+
+// ---------------------------------------------------------------- state
+const KEY_BASE = 'discyboi-v4-placement';
+const KEY = KEY_BASE; // ticks are per line id; ids are shared across builds
+let done = {};
+try { done = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { done = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch {} };
+let side = 'top';
+let selected = null;
+
+// ---------------------------------------------------------------- drawing
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.append(e); return e; };
+const svg = document.getElementById('board');
+const PADV = 3.2; // view margin (mm)
+const VB = { x: 100 - PADV, y: 106.8 - 4.6, w: 34 + 2 * PADV, h: 27.2 + 4.6 + PADV };
+svg.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+
+function boardOutline(parent) {
+  // flat at y = 106.8 from x = 103.4 to 130.6, arc of r = 17 around the centre
+  const d = `M103.4 106.8 L130.6 106.8 A17 17 0 1 1 103.4 106.8 Z`;
+  el('path', { d, fill: 'var(--mask)', stroke: 'var(--mask-edge)', 'stroke-width': 0.25 }, parent);
+}
+
+function draw() {
+  svg.replaceChildren();
+  svg.classList.toggle('sel', !!selected);
+  const g = el('g', side === 'bottom' ? { transform: `translate(${2 * C.x} 0) scale(-1 1)` } : {}, svg);
+  boardOutline(g);
+  el('path', { class: 'silk', d: side === 'top' ? DATA.silkF : DATA.silkB, transform: `translate(${DATA.silkOrigin[0]} ${DATA.silkOrigin[1]})` }, g);
+  // edge note
+  const t = el('text', { x: VB.x + 1.2, y: 105.9, 'font-size': 0.95, fill: '#9fb8a8', 'font-family': 'IBM Plex Mono, monospace' }, svg);
+  t.textContent = side === 'top' ? 'flat edge ↓' : 'flat edge ↓ · bottom, mirrored';
+
+  const labels = [];
+  for (const f of DATA.fps) {
+    const onSide = side === 'top' ? f.side === 'top' : f.side === 'bottom';
+    if (!onSide) continue;
+    const grp = groupOf[f.ref];
+    const on = selected && grp && grp.id === selected;
+    const fg = el('g', { class: `fp${grp?.dnp ? ' dnp' : ''}${on ? ' on' : ''}${grp && done[grp.id] ? ' done' : ''}`, 'data-ref': f.ref }, g);
+    const padLayer = f.side === 'top' ? 'B' : 'F';
+    for (const [n, x, y, w, h, rot, shape, , layers, smd] of f.pads) {
+      if (layers === padLayer) continue;
+      if (!smd) { el('circle', { cx: x, cy: y, r: w / 2, fill: '#06110b', stroke: '#c9a64e', 'stroke-width': 0.08 }, fg); continue; }
+      if (shape === 0) el('circle', { class: 'pad', cx: x, cy: y, r: w / 2 }, fg);
+      else el('rect', { class: 'pad', x: x - w / 2, y: y - h / 2, width: w, height: h, rx: shape === 4 ? Math.min(w, h) * 0.25 : 0, transform: `rotate(${-rot} ${x} ${y})` }, fg);
+    }
+    // body + polarity mark
+    const tf = `rotate(${-f.rot} ${f.x} ${f.y})`;
+    const bs = BODY[f.fp];
+    if (f.ref === 'U1') {
+      // shield can over the pads, antenna strip past the flat edge
+      const bodyG = el('g', {}, fg);
+      el('rect', { class: 'bodyr', x: 114, y: 106.95, width: 6, height: 6.0, rx: 0.2 }, bodyG);
+      el('rect', { x: 114, y: 103.35, width: 6, height: 3.6, fill: 'rgba(30,60,90,0.55)', stroke: '#9fc3e6', 'stroke-width': 0.08, 'stroke-dasharray': '0.3 0.2', class: 'bodyr-ant' }, bodyG);
+      const at = el('text', { x: 117, y: 105.15, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 0.75, fill: '#cfe3f5', 'font-family': 'IBM Plex Mono, monospace' }, bodyG);
+      at.textContent = 'antenna';
+      el('circle', { class: 'mark', cx: 114.55, cy: 107.5, r: 0.28 }, bodyG);
+    } else if (f.ref === 'BT1') {
+      // clip outline from the courtyard; the open end faces the flat edge
+      const [cx, cy, cw, ch] = f.crt;
+      el('path', { d: `M${cx + 2} ${cy + 1.5} L${cx + 2} ${cy + ch - 1.2} Q${cx + cw / 2} ${cy + ch + 1.2} ${cx + cw - 2} ${cy + ch - 1.2} L${cx + cw - 2} ${cy + 1.5}`, fill: 'none', stroke: '#c9ccd1', 'stroke-width': 0.35, class: 'bodyr-clip' }, fg);
+      const ot = el('text', { x: 117, y: cy + 0.9, 'text-anchor': 'middle', 'font-size': 0.95, fill: '#e8eaee', 'font-family': 'IBM Plex Mono, monospace', transform: `translate(${2 * C.x} 0) scale(-1 1)` }, fg);
+      ot.textContent = '↑ open end: cell slides in here';
+    } else if (bs) {
+      const [bw, bh] = bs;
+      const b = el('g', { transform: tf }, fg);
+      el('rect', { class: 'bodyr', x: f.x - bw / 2, y: f.y - bh / 2, width: bw, height: bh, rx: Math.min(bw, bh) * 0.12 }, b);
+      const p1 = f.pads.find((p) => p[0] === '1');
+      if (p1 && (f.ref.startsWith('U'))) {
+        // dot just inside the body corner nearest pad 1 (in world coordinates, so no rotation needed)
+        const dx = Math.sign(p1[1] - f.x) || -1, dy = Math.sign(p1[2] - f.y) || -1;
+        const [ww, hh] = Math.abs(((f.rot % 180) + 180) % 180 - 90) < 1 ? [bh, bw] : [bw, bh];
+        el('circle', { class: 'mark', cx: f.x + dx * (ww / 2 - 0.35), cy: f.y + dy * (hh / 2 - 0.35), r: f.ref === 'U2' ? 0.22 : 0.18 }, fg);
+      }
+      if (f.ref.startsWith('D') && p1) {
+        // cathode band at the pad-1 end, in world coordinates
+        const horiz = Math.abs(p1[2] - f.y) < Math.abs(p1[1] - f.x);
+        const L = Math.max(bw, bh), W = Math.min(bw, bh), bandW = L * 0.16;
+        if (horiz) el('rect', { class: 'mark', x: p1[1] > f.x ? f.x + L / 2 - bandW : f.x - L / 2, y: f.y - W / 2, width: bandW, height: W }, fg);
+        else el('rect', { class: 'mark', x: f.x - W / 2, y: p1[2] > f.y ? f.y + L / 2 - bandW : f.y - L / 2, width: W, height: bandW }, fg);
+      }
+    }
+    // outline for highlighting + hit area
+    const [cx, cy, cw, ch] = f.crt || [f.x - 1, f.y - 1, 2, 2];
+    el('rect', { class: 'outline', x: cx, y: cy, width: cw, height: ch, rx: 0.3 }, fg);
+    if (f.ref !== 'BT1') el('rect', { class: 'hit', x: cx, y: cy, width: cw, height: ch }, fg);
+    else el('circle', { class: 'hit', cx: 117, cy: 119.5, r: 7 }, fg);
+    if (grp && done[grp.id] && !grp.dnp) el('circle', { class: 'placed', cx: cx + cw - 0.1, cy: cy + 0.1, r: 0.32 }, fg);
+    fg.addEventListener('click', () => grp && select(grp.id === selected ? null : grp.id, true));
+    labels.push({ f, on, grp });
+  }
+  if (document.getElementById('opt-labels').checked) {
+    const lg = el('g', {}, svg); // drawn last, unmirrored, so text always reads
+    for (const { f, on, grp } of labels) {
+      if (selected && !on) continue;
+      const x = side === 'bottom' ? 2 * C.x - f.x : f.x;
+      let y = f.y;
+      let size = f.ref.startsWith('U') ? 0.95 : 0.6;
+      if (f.ref === 'U1') y = 110.5;
+      if (f.ref === 'BT1') { y = 121.8; size = 1.2; }
+      if (grp?.dnp && !on) size *= 0.85;
+      const t = el('text', { class: 'reflab', x, y, 'font-size': size }, el('g', { class: `fp${on ? ' on' : ''}` }, lg));
+      t.textContent = f.ref;
+    }
+  }
+  svg.classList.toggle('hide-bodies', !document.getElementById('opt-bodies').checked);
+}
+
+// ---------------------------------------------------------------- list
+function rowFor(g) {
+  const row = document.createElement('div');
+  row.className = `row${done[g.id] ? ' done' : ''}${selected === g.id ? ' on' : ''}`;
+  row.tabIndex = 0;
+  row.dataset.id = g.id;
+  row.setAttribute('role', 'button');
+  row.setAttribute('aria-pressed', selected === g.id ? 'true' : 'false');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.id = `done-${g.id}`;
+  cb.checked = !!done[g.id];
+  cb.setAttribute('aria-label', `${g.val} placed`);
+  if (g.dnp) cb.style.visibility = 'hidden';
+  cb.addEventListener('click', (e) => e.stopPropagation());
+  cb.addEventListener('change', () => { done[g.id] = cb.checked; save(); render(); });
+  const qty = document.createElement('div');
+  qty.className = 'qty';
+  qty.textContent = g.dnp ? '–' : `${g.refs.length}×`;
+  const what = document.createElement('div');
+  what.className = 'what';
+  const badge = g.dnp ? '' : g.pol ? '<span class="badge pol">orientation</span>' : '<span class="badge np">any way round</span>';
+  what.innerHTML = `<div class="top"><span class="val">${g.val}</span><span class="pkg">${g.pkg}</span>${badge}</div>
+    <div class="refs">${g.refs.join(' ')}</div>
+    ${g.mpn ? `<div class="mpn">${g.mpn}</div>` : ''}
+    ${g.orient ? `<div class="orient">${g.orient}</div>` : ''}
+    ${g.note ? `<div class="note">${g.note}</div>` : ''}`;
+  row.append(cb, qty, what);
+  const act = () => { select(selected === g.id ? null : g.id, false); };
+  row.addEventListener('click', act);
+  row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+  return row;
+}
+
+function renderList() {
+  for (const sec of ['pol', 'pass', 'bot', 'dnp']) {
+    const box = document.getElementById(`list-${sec}`);
+    box.replaceChildren(...GROUPS.filter((g) => g.sec === sec).map(rowFor));
+    if (sec === 'bot') document.getElementById('bot-empty').hidden = box.children.length > 0;
+  }
+  const fit = GROUPS.filter((g) => !g.dnp);
+  const nParts = fit.reduce((a, g) => a + g.refs.length, 0);
+  const nDone = fit.filter((g) => done[g.id]).reduce((a, g) => a + g.refs.length, 0);
+  document.getElementById('progress').innerHTML = `<b>${nDone}</b> / ${nParts} parts placed · ${fit.length} lines`;
+}
+
+function caption() {
+  const cap = document.getElementById('caption');
+  const g = GROUPS.find((x) => x.id === selected);
+  if (!g) { cap.textContent = 'Tap a part on the board or a line in the list.'; return; }
+  const f = byRef[g.refs[0]];
+  const where = g.refs.map((r) => byRef[r]).filter(Boolean).map((p) => `${p.ref} (${(p.x - C.x).toFixed(1)}, ${(C.y - p.y).toFixed(1)})`).join(' · ');
+  cap.innerHTML = `<b>${g.val}</b> · ${g.refs.length} × ${g.pkg}${f && f.side === 'bottom' ? ' · <b>bottom side</b>' : ''}<br><span style="font-family:var(--f-mono);font-size:11.5px">${where} mm from centre, +y toward flat edge</span>`;
+}
+
+function select(id, fromBoard) {
+  selected = id;
+  const g = GROUPS.find((x) => x.id === id);
+  if (g) {
+    const s = byRef[g.refs[0]]?.side;
+    if (s && s !== side) setSide(s, false);
+  }
+  render();
+  if (fromBoard && id) document.querySelector(`.row[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
+function setSide(s, rerender = true) {
+  side = s;
+  document.getElementById('side-top').setAttribute('aria-pressed', s === 'top');
+  document.getElementById('side-bottom').setAttribute('aria-pressed', s === 'bottom');
+  if (rerender) render();
+}
+
+function render() { draw(); renderList(); caption(); }
+
+document.getElementById('side-top').addEventListener('click', () => setSide('top'));
+document.getElementById('side-bottom').addEventListener('click', () => setSide('bottom'));
+document.getElementById('opt-labels').addEventListener('change', render);
+document.getElementById('opt-bodies').addEventListener('change', render);
+document.getElementById('reset').addEventListener('click', () => { done = {}; save(); render(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') select(null); });
+// ---------------------------------------------------------------- reflow profile chart
+function drawProfile() {
+  const sv = document.getElementById('profile');
+  const W = 560, H = 250, L = 44, R = 14, T = 26, B = 32;
+  const tMax = 330, yMin = 0, yMax = 250;
+  const X = (t) => L + (t / tMax) * (W - L - R);
+  const Y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+  const stages = [
+    { name: 'Preheat', t0: 0, t1: 100, c: 'var(--st1)' },
+    { name: 'Soak', t0: 100, t1: 180, c: 'var(--st2)' },
+    { name: 'Reflow', t0: 180, t1: 265, c: 'var(--st3)' },
+    { name: 'Cool', t0: 265, t1: 330, c: 'var(--st4)' },
+  ];
+  const pts = [[0, 25], [30, 70], [70, 130], [100, 150], [140, 162], [180, 170], [205, 183], [225, 200], [240, 212], [250, 214], [258, 205], [265, 183], [285, 160], [310, 135], [330, 115]];
+  const parts = [];
+  for (const st of stages) parts.push(`<rect class="band" x="${X(st.t0)}" y="${T}" width="${X(st.t1) - X(st.t0)}" height="${H - T - B}" fill="${st.c}"><title>${st.name}</title></rect>`,
+    `<text class="stl" x="${(X(st.t0) + X(st.t1)) / 2}" y="${T - 9}" text-anchor="middle">${st.name}</text>`);
+  for (let v = 0; v <= 250; v += 50) parts.push(`<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`);
+  for (let t = 0; t <= 300; t += 60) parts.push(`<text x="${X(t)}" y="${H - B + 16}" text-anchor="middle">${t}</text>`);
+  parts.push(`<text x="${W - R}" y="${H - 4}" text-anchor="end">seconds</text><text x="6" y="${T - 9}" >°C</text>`);
+  parts.push(`<line class="ax" x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}"/>`);
+  parts.push(`<line class="liq" x1="${L}" x2="${W - R}" y1="${Y(183)}" y2="${Y(183)}"/><text class="liqt" x="${L + 6}" y="${Y(183) - 5}">183 °C paste melts</text>`);
+  parts.push(`<path class="curve" d="${pts.map(([t, v], i) => `${i ? 'L' : 'M'}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join('')}"/>`);
+  parts.push(`<circle cx="${X(250)}" cy="${Y(214)}" r="4.5" fill="var(--hl)" stroke="var(--panel)" stroke-width="2"/><text x="${X(250) + 8}" y="${Y(214) - 6}" style="fill:var(--fg)">peak 205–220</text>`);
+  parts.push(`<line id="pf-rule" class="ax" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/><circle id="pf-dot" r="4" fill="var(--fg)" visibility="hidden"/><text id="pf-tip" visibility="hidden" style="fill:var(--fg);font-weight:600"></text>`);
+  parts.push(`<rect class="hov" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`);
+  sv.innerHTML = parts.join('');
+  const rule = sv.querySelector('#pf-rule'), dot = sv.querySelector('#pf-dot'), tip = sv.querySelector('#pf-tip');
+  const at = (t) => { for (let i = 1; i < pts.length; i++) if (pts[i][0] >= t) { const [t0, v0] = pts[i - 1], [t1, v1] = pts[i]; return v0 + ((v1 - v0) * (t - t0)) / (t1 - t0); } return pts[pts.length - 1][1]; };
+  sv.querySelector('.hov').addEventListener('pointermove', (e) => {
+    const r = sv.getBoundingClientRect();
+    const sx = ((e.clientX - r.left) / r.width) * W;
+    const t = Math.max(0, Math.min(tMax, ((sx - L) / (W - L - R)) * tMax));
+    const v = at(t), st = stages.find((x) => t >= x.t0 && t <= x.t1);
+    for (const [k, val] of [['x1', X(t)], ['x2', X(t)]]) rule.setAttribute(k, val);
+    dot.setAttribute('cx', X(t)); dot.setAttribute('cy', Y(v));
+    tip.textContent = `${Math.round(t)} s · ${Math.round(v)} °C · ${st ? st.name : ''}`;
+    const right = X(t) > W - 160;
+    tip.setAttribute('x', X(t) + (right ? -8 : 8)); tip.setAttribute('y', Y(v) + 18); tip.setAttribute('text-anchor', right ? 'end' : 'start');
+    for (const el2 of [rule, dot, tip]) el2.setAttribute('visibility', 'visible');
+  });
+  sv.querySelector('.hov').addEventListener('pointerleave', () => { for (const el2 of [rule, dot, tip]) el2.setAttribute('visibility', 'hidden'); });
+}
+
+document.querySelectorAll('[data-build]').forEach((btn) => btn.addEventListener('click', () => { setBuild(btn.dataset.build); render(); }));
+setBuild(build);
+drawProfile();
+render();
+</script>
