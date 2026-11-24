@@ -74,11 +74,14 @@ The server is `bun run server`: `server/main.ts` (Bun.serve) and `server/db.ts` 
 | `DISCYBOI_SIGNUP` | `open` | `closed` stops new accounts |
 | `DISCYBOI_MAX_THROWS` | 20000 | per account; the oldest are dropped beyond it |
 | `DISCYBOI_TRUST_PROXY` | off | `1` behind a reverse proxy (the Vite dev proxy counts), so rate limits see real client IPs and https is detected |
+| `DISCYBOI_FIRMWARE` | `firmware/` | folder with the disc firmware on offer, served under `/firmware/` (see below) |
 | `DISCYBOI_ORIGINS` | | extra allowed origins for writes, comma separated |
 
 Over plain http on a LAN the session cookie and password travel unencrypted. That's fine at home, but put it behind https (e.g. `tailscale serve`, which Web Bluetooth also needs) before using it anywhere else, and set sign-up to `closed` once your accounts exist if the server is reachable from the internet.
 
 API (JSON, cookie session): `GET /api/me`, `POST /api/signup|login|logout|password`, `GET /api/throws`, `POST /api/throws` (bulk upsert, ≤1000), `DELETE /api/throws[/id]`, `GET /api/events` (SSE: put / del / clear / prefs), `GET|PUT /api/prefs` (shared session start), `GET|PUT /api/captures/<throw id>` (raw sensor recording, binary, ≤256 KB, newest 1000 kept).
+
+**Disc firmware updates:** the server serves `firmware/manifest.json` and the signed image it names under `/firmware/`, without sign-in. `firmware/release.sh` in the repo puts them there; web deploys leave the folder alone. When a connected disc reports an older version than the manifest (or the same number from a different commit), an **Update firmware** button appears next to Connect. The page checks the file's size and SHA-256, uploads it over the disc's mcumgr SMP service, restarts the disc, reconnects and compares the version it then reports. A disc only boots images signed with the project's key, and goes back to its previous firmware if the new one doesn't start. Details are in `firmware/README.md`, "Updates over Bluetooth".
 
 ## Flight model (`src/sim/`)
 
@@ -121,7 +124,7 @@ Flight numbers are manufacturer opinion, so expect the right *shape* and roughly
 src/sim/      flight model, presets, firmware -> params conversion (no DOM; tested with bun test)
 src/scene/    world (field, basket, trees), disc mesh, playback + trail, cameras
 src/ui/       panels: disc picker, release, history, stats, device, account
-src/ble/      protocol (byte layouts), Web Bluetooth client, fake device
+src/ble/      protocol (byte layouts), Web Bluetooth client, firmware update (mcumgr SMP), fake device
 src/store/    history (localStorage or account) + settings, API client, records from disc throws
 server/       Bun + SQLite: accounts, sessions, throws, live events; serves dist/
 src/throws/   throws page: metrics, SVG charts (paths, trend), page

@@ -15,6 +15,9 @@ import {
   type DeviceStatus,
   type ThrowResult,
 } from './protocol';
+import { sendFirmware, SMP_CHAR_UUID, SMP_SERVICE_UUID, SmpClient, type SmpTransport } from './smp';
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export interface DiscDevice {
   readonly name: string;
@@ -25,6 +28,12 @@ export interface DiscDevice {
   identify(): Promise<void>;
   /** Downloads the raw sensor recording of the latest throw (see CaptureAssembler for the format). */
   downloadCapture?(): Promise<Uint8Array>;
+  /**
+   * Sends a signed firmware image, restarts the disc into it and reconnects; `firmware` then
+   * holds what the disc actually runs. onProgress gets the upload fraction, then 'restart'.
+   * If it rejects while still connected, the disc keeps running its current firmware.
+   */
+  updateFirmware?(image: Uint8Array, onProgress: (p: number | 'restart') => void): Promise<void>;
   onThrow?: (r: ThrowResult) => void;
   onStatus?: (s: DeviceStatus) => void;
   onBattery?: (percent: number) => void;
@@ -48,16 +57,26 @@ export class BleDisc implements DiscDevice {
   private control?: BluetoothRemoteGATTCharacteristic;
   private data?: BluetoothRemoteGATTCharacteristic;
   private downloading = false;
+  private updating = false;
+  private smp?: SmpClient;
   private lastThrowId = -1;
 
   async connect() {
     const device = await navigator.bluetooth.requestDevice({
       filters: [{ name: DEVICE_NAME }, { services: [SERVICE_UUID] }],
-      optionalServices: [SERVICE_UUID, 'battery_service'],
+      optionalServices: [SERVICE_UUID, 'battery_service', SMP_SERVICE_UUID],
     });
     this.device = device;
     this.name = device.name ?? DEVICE_NAME;
-    device.addEventListener('gattserverdisconnected', () => this.onDisconnect?.());
+    device.addEventListener('gattserverdisconnected', () => {
+      this.smp?.close('Disconnected during the update');
+      if (!this.updating) this.onDisconnect?.(); // during an update the restart is expected
+    });
+    await this.setup(device);
+  }
+
+  /** Connects and subscribes. Also used to come back after a firmware update. */
+  private async setup(device: BluetoothDevice) {
     const server = await device.gatt!.connect();
     const svc = await server.getPrimaryService(SERVICE_UUID);
 
@@ -157,6 +176,47 @@ export class BleDisc implements DiscDevice {
       arm();
       control.writeValueWithResponse(new Uint8Array([CTRL_DOWNLOAD])).catch(fail);
     });
+  }
+
+  async updateFirmware(image: Uint8Array, onProgress: (p: number | 'restart') => void): Promise<void> {
+    const device = this.device;
+    if (!device?.gatt?.connected) throw new Error('Not connected');
+    if (this.updating || this.downloading) throw new Error('The disc is busy');
+    this.updating = true;
+    try {
+      const svc = await device.gatt.getPrimaryService(SMP_SERVICE_UUID);
+      const ch = await svc.getCharacteristic(SMP_CHAR_UUID);
+      const transport: SmpTransport = { write: (d) => ch.writeValueWithoutResponse(d as BufferSource) };
+      const smp = (this.smp = new SmpClient(transport));
+      ch.addEventListener('characteristicvaluechanged', () => {
+        const v = ch.value!;
+        transport.onData?.(new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength)));
+      });
+      await ch.startNotifications();
+      const gone = new Promise<void>((r) => device.addEventListener('gattserverdisconnected', () => r(), { once: true }));
+
+      await sendFirmware(smp, image, onProgress);
+      onProgress('restart');
+      this.smp = undefined;
+      // The disc restarts, MCUboot swaps the images, and the new firmware starts advertising.
+      await Promise.race([gone, sleep(10000)]);
+      if (device.gatt.connected) device.gatt.disconnect();
+      const deadline = Date.now() + 90000;
+      for (;;) {
+        await sleep(2000);
+        try {
+          await Promise.race([this.setup(device), sleep(20000).then(() => Promise.reject(new Error('timeout')))]);
+          break;
+        } catch {
+          if (Date.now() > deadline) throw new Error('The disc did not come back after the update. Connect again to see which firmware it runs.');
+          if (device.gatt.connected) device.gatt.disconnect();
+        }
+      }
+    } finally {
+      this.updating = false;
+      this.smp = undefined;
+      if (!device.gatt?.connected) this.onDisconnect?.();
+    }
   }
 
   async identify() {

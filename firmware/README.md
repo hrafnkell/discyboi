@@ -83,12 +83,21 @@ JLinkRTTViewer   # or JLinkRTTLogger: logs go over RTT (there's no UART)
 
 Once MCUboot is on the board, the app is updated over Bluetooth and the debug leads aren't needed. The firmware runs the mcumgr SMP service next to the discyboi service.
 
+**From the web app (the usual way):**
+1. Commit, then build. `build.sh` stamps the commit into the image, and `release.sh` refuses a build made from uncommitted changes.
+2. `./release.sh` copies the signed image and a small `manifest.json` (version, file name, size, SHA-256) to the web app's host, into `firmware/` next to the server. The server serves them under `/firmware/`.
+3. Connect the disc in the web app. If the published version is newer than the disc's, or the same number from a different commit, an **Update firmware** button appears next to Connect. It uploads the image, marks it to be tried once, restarts the disc, reconnects and checks the version the disc then reports. It takes a minute or two; keep the page open and the disc close.
+
+The app refuses to start an update below 2.6 V, because a tired coin cell can sag too far while the disc writes flash. Bump `app/VERSION` for anything you publish: after changing it, build with `./build.sh pristine`.
+
+**By hand, with a phone or PC:**
 1. Build, then copy `build/app/zephyr/zephyr.signed.bin` to your phone.
 2. Disconnect the web app: the disc takes one connection at a time.
 3. In **nRF Connect Device Manager** (Android/iOS), pick `discyboi`, then Image → Firmware Upgrade. Select the file and choose mode **Test only**. From a PC, the `mcumgr` CLI works too: `mcumgr --conntype ble --connstring peer_name=discyboi image upload zephyr.signed.bin`, then `image test <hash>` and `reset`.
-4. The disc resets, MCUboot swaps in the new image and the app boots. If both IMUs answer, the app confirms the new image itself (RTT: `new firmware confirmed`).
 
-**Checking which firmware is running:** connect with the web app. The connect message and the status chip's tooltip show the version, for example `0.2.0+0c1c28b`: the number from `app/VERSION` plus the git commit the image was built from. `build.sh` prints the same string at the end of a build, and Device Manager shows the number for each slot. Bump `app/VERSION` when a build should be told apart by number.
+Either way, the disc resets, MCUboot swaps in the new image and the app boots. If both IMUs answer, the app confirms the new image itself (RTT: `new firmware confirmed`).
+
+**Checking which firmware is running:** connect with the web app. The connect message and the status chip's tooltip show the version, for example `0.3.0+0c1c28b`: the number from `app/VERSION` plus the git commit the image was built from. `build.sh` prints the same string at the end of a build, and Device Manager shows the number for each slot. Bump `app/VERSION` when a build should be told apart by number.
 
 If the new image crashes or an IMU fails on that first boot, it isn't confirmed, and the next reset brings back the previous firmware. Pull and refit the cell to force that reset.
 
@@ -108,9 +117,9 @@ If the new image crashes or an IMU fails on that first boot, it isn't confirmed,
 The data-ready interrupt from the centre IMU (INT1, pulsed) paces sampling, and both IMUs are read in one SPI burst each.
 
 **Analysis** (`src/analysis.c`):
-1. Finds a still 100 ms window before the pull. Its mean accelerometer reading defines "up".
-2. Integrates the gyro from there to release to track orientation.
-3. Rotates the accelerometer into the world frame, removes gravity and integrates to get the release velocity.
+1. Finds the calm stretch before the pull: from the first to the last 100 ms window where the acceleration is within 0.15 g of 1 g and rotation is under 100 dps RMS.
+2. Tracks orientation with the gyro through that stretch and averages the accelerometer in a fixed frame. The average points "up": over a stretch of T seconds it is 1 g plus (change in hand velocity) / T, and that change is small between two calm moments, whatever happens in between.
+3. Carries the orientation on to release. From the end of the calm stretch it also rotates the accelerometer into the world frame, removes gravity and integrates to get the release velocity.
 
 From the velocity and the disc normal at release it computes:
 - **speed**
@@ -127,8 +136,10 @@ There is no magnetometer, so compass heading is unknown, but none of the outputs
 
 ### Known limitations
 
-- **No still moment:** if the disc never sits still in the 2.5 s before the throw (a run-up, for example), there's no reference for "up". Speed and angles are then not reported; spin, wobble and flight time still are.
-- **Drift:** integration drift grows with the time between the still moment and release.
+- **Nothing calm:** if no 100 ms before the pull is calm, the calmest one is used alone and the result carries the *approximate* flag (also set when the calm stretch is short without a truly still moment, or its average is more than 0.06 g off 1 g). Tilt can then be 10–20° off. If even that fails, speed and angles are not reported; spin, wobble and flight time still are.
+- **Moving reference:** the speed is measured from the end of the calm stretch, which is taken as standing still. A steady walk at that moment goes missing from the speed and tilts "up" by a few degrees.
+- **Accuracy is unverified:** on recorded throws the tilt holds within a few degrees when the reference stretch is varied, but nothing has been checked against a camera or a known release.
+- **Drift:** integration drift grows with the time between the calm stretch and release.
 - **Rim spin bias:** while the disc spins up during the pull, tangential acceleration slightly inflates the rim IMU's spin estimate. This mostly affects the orientation during the pull.
 - **Timing:** sample timing assumes exactly 960 Hz. The IMU's ODR is only good to a few percent unless it's corrected with `INTERNAL_FREQ_FINE` or high-accuracy ODR mode.
 - **Mounting:** the firmware assumes the board's z axis is the disc's spin axis and the centre IMU is on it.
@@ -186,6 +197,8 @@ app/src/ble.c             GATT service, raw download
 app/src/battery.c         VBAT via AIN2, Battery Service
 app/src/led.c             status LED
 test/                     host test: synthetic throws through analysis.c (`make -C test`)
+                          `make -C test replay && test/replay throw.bin …` runs it on raw captures saved by the web app
+release.sh                publish the built image to the web app's host (see Updates over Bluetooth)
 ```
 
 ## Bring-up TODO

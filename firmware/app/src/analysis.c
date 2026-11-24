@@ -1,13 +1,14 @@
 /*
  * Throw analysis on a frozen capture. Preliminary and deliberately simple:
  *
- * 1. Find a still moment before the pull (100 ms with |a| ~ 1 g and little rotation). Its mean
- *    accelerometer reading defines "up" and the starting orientation. If the disc was never
- *    still, the calmest 100 ms is used instead and the result is flagged as approximate.
- * 2. Integrate the gyro from there to release to track orientation (when the gyro saturates on
- *    z, the spin rate comes from the rim/centre centripetal difference instead).
- * 3. Rotate the centre accelerometer into the world frame, remove gravity and integrate to get
- *    the release velocity.
+ * 1. Find the calm stretch before the pull: from the first to the last 100 ms window with
+ *    |a| ~ 1 g and little rotation. The accelerometer averaged over it, with the gyro tracking
+ *    the rotation, defines "up" (see find_ref). If nothing is calm, the calmest 100 ms is used
+ *    and the result is flagged as approximate.
+ * 2. Integrate the gyro to release to track orientation (when the gyro saturates on z, the
+ *    spin rate comes from the rim/centre centripetal difference instead).
+ * 3. From the end of the calm stretch, rotate the centre accelerometer into the world frame,
+ *    remove gravity and integrate to get the release velocity.
  * 4. At release: disc normal + velocity -> hyzer, nose and launch angles.
  *
  * Heading about the vertical axis is unknown (no magnetometer) but is not needed: all angles
@@ -132,22 +133,39 @@ float sample_spin_dps(const struct sample *s, float rim_radius_m, bool *centrip)
 	return copysignf(w, gz);
 }
 
-/* Fallback when the disc was never truly still (walking back from the net, a continuous
- * wind-up): the calmest window still averages to roughly 1 g up, as long as the hand is not
- * accelerating hard. Costs a few degrees and up to ~1 m/s, which beats no result. */
-#define CALM_MAX_DG      0.25f
-#define CALM_MAX_RMS_DPS 300.0f
+/* Reference for "up" and for zero velocity, taken before the pull.
+ *
+ * A single short window is a poor gravity reference unless the disc is truly at rest: the hand
+ * is accelerating, and 0.1 g sideways is already 6 degrees. So the reference is the whole span
+ * from the first calm window to the last: with the gyro tracking the rotation, the specific
+ * force averaged over a span of T seconds is 1 g up plus (change in velocity) / T, and the
+ * hand's velocity changes little between two calm moments. Whatever happens in between (a
+ * step, a wind-up) cancels out. Recorded throws put this within a few degrees, where single
+ * windows 50 ms apart disagreed by 10-20 degrees.
+ *
+ * If nothing is that calm, the calmest 100 ms is the whole span and the result is flagged as
+ * approximate. */
+#define CALM_MAX_DG       0.15f   /* window mean |a| within this of 1 g */
+#define CALM_MAX_RMS_DPS  100.0f
+#define ROUGH_MAX_DG      0.25f   /* fallback */
+#define ROUGH_MAX_RMS_DPS 300.0f
+#define SPAN_MIN_N        (IMU_ACTIVE_HZ / 2)  /* shorter than this needs a truly still window */
+#define SPAN_MAX_DG       0.06f                /* span mean must come out this close to 1 g */
 
-/* Reference window before the pull: a still one if there is any, otherwise the calmest.
- * Returns its first index, or -1. *approx is set when it is only a calm window. */
-static int find_still(const struct capture_view *cap, float up_sensor[3], bool *approx)
+struct ref_span {
+	int from, to;   /* samples [from, to) */
+	bool still;     /* contains a window with next to no rotation */
+	bool rough;     /* fallback: one window that is merely the calmest */
+};
+
+static bool find_ref(const struct capture_view *cap, struct ref_span *ref)
 {
-	int best = -1, calm = -1;
-	float best_score = 1e9f, calm_score = 1e9f;
-	float calm_up[3] = {0, 0, 1};
+	int first = -1, last = -1, rough = -1;
+	float rough_score = 1e9f;
 
+	ref->still = false;
 	for (int start = 0; start + STILL_N <= cap->pull_idx; start += STILL_N / 4) {
-		float sum[3] = {0}, sum_g = 0, sum_g2 = 0, max_dps = 0, sum_w2 = 0;
+		float sum_g = 0, sum_g2 = 0, max_dps = 0, sum_w2 = 0;
 
 		for (int i = start; i < start + STILL_N; i++) {
 			const struct sample *s = capture_get(i);
@@ -159,7 +177,6 @@ static int find_still(const struct capture_view *cap, float up_sensor[3], bool *
 			for (int k = 0; k < 3; k++) {
 				float w = s->gyro[k] * IMU_GYRO_DPS_PER_LSB;
 
-				sum[k] += a[k];
 				max_dps = MAX(max_dps, fabsf(w));
 				sum_w2 += w * w;
 			}
@@ -167,37 +184,57 @@ static int find_still(const struct capture_view *cap, float up_sensor[3], bool *
 			sum_g2 += g * g;
 		}
 		float mean_g = sum_g / STILL_N;
+		float dg = fabsf(mean_g - 1.0f);
 		float var = sum_g2 / STILL_N - mean_g * mean_g;
 		float rms_dps = sqrtf(sum_w2 / STILL_N);
-		float late = (float)(cap->pull_idx - start) / IMU_ACTIVE_HZ * 0.001f;
-		float n = sqrtf(dot3(sum, sum));
-		/* Prefer windows close to 1 g, steady, and late (closest to the throw: less drift). */
-		float score = var + fabsf(mean_g - 1.0f) * 0.1f + late;
 
-		if (fabsf(mean_g - 1.0f) < 0.15f && max_dps < STILL_MAX_DPS && score < best_score) {
-			best_score = score;
-			best = start;
-			for (int k = 0; k < 3; k++) {
-				up_sensor[k] = sum[k] / n;
+		if (dg < CALM_MAX_DG && rms_dps < CALM_MAX_RMS_DPS) {
+			if (first < 0) {
+				first = start;
 			}
+			last = start;
+			ref->still |= max_dps < STILL_MAX_DPS;
 		}
-		/* Calm: the same idea, but rotation only counts against the window. */
-		score = var + fabsf(mean_g - 1.0f) * 0.5f + rms_dps * 0.001f + late;
-		if (fabsf(mean_g - 1.0f) < CALM_MAX_DG && rms_dps < CALM_MAX_RMS_DPS &&
-		    score < calm_score) {
-			calm_score = score;
-			calm = start;
-			for (int k = 0; k < 3; k++) {
-				calm_up[k] = sum[k] / n;
-			}
+		/* Fallback candidate: steady, close to 1 g, little rotation, and late (less drift). */
+		float late = (float)(cap->pull_idx - start) / IMU_ACTIVE_HZ * 0.001f;
+		float score = var + dg * 0.5f + rms_dps * 0.001f + late;
+
+		if (dg < ROUGH_MAX_DG && rms_dps < ROUGH_MAX_RMS_DPS && score < rough_score) {
+			rough_score = score;
+			rough = start;
 		}
 	}
-	*approx = best < 0;
-	if (best < 0 && calm >= 0) {
-		memcpy(up_sensor, calm_up, sizeof(calm_up));
-		return calm;
+	ref->rough = first < 0;
+	if (ref->rough) {
+		first = last = rough;
 	}
-	return best;
+	if (first < 0) {
+		return false;
+	}
+	ref->from = first;
+	ref->to = last + STILL_N;
+	return true;
+}
+
+/* q <- q * exp(w dt / 2), w in rad/s in the sensor frame */
+static void q_step(struct quat *q, const float w[3])
+{
+	float th = sqrtf(dot3(w, w)) * DT;
+
+	if (th > 1e-9f) {
+		float h = sinf(th / 2) / (th / DT);
+		struct quat dq = {cosf(th / 2), w[0] * h, w[1] * h, w[2] * h};
+
+		*q = qmul(*q, dq);
+		qnorm(q);
+	}
+}
+
+static void sample_rate_rad(const struct capture_view *cap, const struct sample *s, float w[3])
+{
+	w[0] = s->gyro[0] * IMU_GYRO_DPS_PER_LSB / DEG;
+	w[1] = s->gyro[1] * IMU_GYRO_DPS_PER_LSB / DEG;
+	w[2] = sample_spin_dps(s, cap->rim_radius_m, NULL) / DEG;
 }
 
 void analysis_run(const struct capture_view *cap, struct throw_result *out)
@@ -236,30 +273,50 @@ void analysis_run(const struct capture_view *cap, struct throw_result *out)
 		out->wobble_dps = (uint16_t)sqrtf(w2 / n_w);
 	}
 
-	/* Orientation + velocity from a still reference. */
-	float up_s[3];
-	bool approx;
-	int still = find_still(cap, up_s, &approx);
+	/* Orientation + velocity from the reference span. */
+	struct ref_span ref;
 
-	if (still < 0) {
+	if (!find_ref(cap, &ref)) {
 		LOG_WRN("nothing calm enough before the throw: no speed / angles");
 		out->flags |= RESULT_NO_REF;
 		return;
 	}
-	if (approx) {
-		LOG_INF("no still moment before the throw: using the calmest 100 ms");
+
+	/* Track orientation through the span in the frame of its first sample, averaging the
+	 * specific force there: the mean points up. */
+	struct quat q = {1, 0, 0, 0};
+	float sum[3] = {0};
+
+	for (int i = ref.from; i < ref.to; i++) {
+		const struct sample *s = capture_get(i);
+		float a[3], aw[3], w[3];
+
+		sample_centre_acc_g(s, a);
+		qrot(q, a, aw);
+		for (int k = 0; k < 3; k++) {
+			sum[k] += aw[k];
+		}
+		sample_rate_rad(cap, s, w);
+		q_step(&q, w);
+	}
+	float mag = sqrtf(dot3(sum, sum));
+	float mean_g = mag / (ref.to - ref.from);
+	float up_s[3] = {sum[0] / mag, sum[1] / mag, sum[2] / mag};
+
+	if (ref.rough || (!ref.still && ref.to - ref.from < SPAN_MIN_N) ||
+	    fabsf(mean_g - 1.0f) > SPAN_MAX_DG) {
+		LOG_INF("weak reference before the throw (%d ms, mean %.2f g): approximate",
+			(ref.to - ref.from) * 1000 / IMU_ACTIVE_HZ, (double)mean_g);
 		out->flags |= RESULT_REF_APPROX;
 	}
-	struct quat q = q_align_to_z(up_s);
-	float v[3] = {0};
-	int from = still + STILL_N / 2;
+	/* Re-base so that world z is up, then carry on to the release. */
+	q = qmul(q_align_to_z(up_s), q);
 
-	for (int i = from; i < cap->release_idx; i++) {
+	float v[3] = {0};
+
+	for (int i = ref.to; i < cap->release_idx; i++) {
 		const struct sample *s = capture_get(i);
-		float a[3], aw[3];
-		float wz = sample_spin_dps(s, cap->rim_radius_m, NULL);
-		float w[3] = {s->gyro[0] * IMU_GYRO_DPS_PER_LSB / DEG, s->gyro[1] * IMU_GYRO_DPS_PER_LSB / DEG,
-			      wz / DEG};
+		float a[3], aw[3], w[3];
 
 		/* velocity: specific force -> world, minus gravity */
 		sample_centre_acc_g(s, a);
@@ -268,17 +325,8 @@ void analysis_run(const struct capture_view *cap, struct throw_result *out)
 		for (int k = 0; k < 3; k++) {
 			v[k] += aw[k] * G0 * DT;
 		}
-
-		/* orientation: q <- q * exp(w dt / 2) */
-		float th = sqrtf(dot3(w, w)) * DT;
-
-		if (th > 1e-9f) {
-			float h = sinf(th / 2) / (th / DT);
-			struct quat dq = {cosf(th / 2), w[0] * h, w[1] * h, w[2] * h};
-
-			q = qmul(q, dq);
-			qnorm(&q);
-		}
+		sample_rate_rad(cap, s, w);
+		q_step(&q, w);
 	}
 
 	float speed = sqrtf(dot3(v, v));

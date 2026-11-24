@@ -18,6 +18,8 @@ const MAX_THROWS = Number(env.DISCYBOI_MAX_THROWS ?? 20000);
 const TRUST_PROXY = env.DISCYBOI_TRUST_PROXY === '1';
 const EXTRA_ORIGINS = new Set((env.DISCYBOI_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
 const DIST = resolve(import.meta.dir, '../dist');
+// Disc firmware offered to connected discs: manifest.json + the signed image, put there by firmware/release.sh.
+const FIRMWARE = resolve(env.DISCYBOI_FIRMWARE ?? join(import.meta.dir, '../firmware'));
 const SESSION_TTL = 60 * 24 * 3600e3; // 60 days
 const COOKIE = 'discyboi_session';
 const MAX_THROW_BYTES = 16 * 1024;
@@ -303,15 +305,15 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
   return err(404, 'Not found');
 }
 
-async function staticFile(path: string): Promise<Response> {
-  if (!existsSync(DIST)) return new Response('Not found (run `bun run build`, or use the Vite dev server)', { status: 404 });
+async function staticFile(path: string, root = DIST): Promise<Response> {
+  if (!existsSync(root)) return new Response(root === DIST ? 'Not found (run `bun run build`, or use the Vite dev server)' : 'Not found', { status: 404 });
   const rel = normalize(decodeURIComponent(path)).replace(/^(\.\.[/\\])+/, '');
-  let file = resolve(DIST, '.' + (rel.endsWith('/') ? rel + 'index.html' : rel));
-  if (file !== DIST && !file.startsWith(DIST + '/')) return new Response('Not found', { status: 404 });
+  let file = resolve(root, '.' + (rel.endsWith('/') ? rel + 'index.html' : rel));
+  if (file !== root && !file.startsWith(root + '/')) return new Response('Not found', { status: 404 });
   let f = Bun.file(file);
   if (!(await f.exists()) && (await Bun.file(file + '.html').exists())) f = Bun.file((file += '.html'));
   if (!(await f.exists())) return new Response('Not found', { status: 404 });
-  const cache = rel.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
+  const cache = root === DIST && rel.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
   return new Response(f, { headers: { 'Cache-Control': cache, ...SEC_HEADERS } });
 }
 
@@ -324,6 +326,7 @@ const server = Bun.serve({
     try {
       if (path.startsWith('/api/')) return await api(req, srv, path);
       if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
+      if (path.startsWith('/firmware/')) return await staticFile(path.slice('/firmware'.length), FIRMWARE);
       return await staticFile(path);
     } catch (e) {
       console.error(e);

@@ -82,11 +82,21 @@ module clip2d(grow = 0, ch = 5.3) {
     offset(delta = grow) polygon([[-w, y1], [w, y1], [w, y0 + ch], [w - ch, y0], [-w + ch, y0], [-w, y0 + ch]]);
 }
 
-// Space the lid has to leave above the board for the battery.
+// Space the lid has to leave above the board for the battery (coin): the clip's bounding
+// rectangle plus 0.4 mm, run straight on past the open end for the cell (which pokes 0.65 mm out)
+// with `cell_open_extra` to spare. The two closed-end corners are filleted, not chamfered like the
+// clip itself, because the clip's corner tabs stick out past its chamfer. The fillet can't be much
+// smaller: at 4 mm the lid is 0.8 mm thick where the recess ceiling comes closest to the round-over.
+cell_fillet = 4.0;
+cell_open_extra = 0.5;
 module cell2d() {
     if (battery == "coin") {
-        clip2d(0.4, 4.0);
-        translate([0, cell_y]) circle(d = 20 + 2 * 0.4);   // the cell pokes 0.65 mm out of the open end
+        w = 10.55 + 0.4; f = cell_fillet;
+        y0 = cell_y - 10.45 - 0.4; y1 = cell_y + 10 + 0.4 + cell_open_extra;
+        hull() {
+            translate([-w, y0 + f]) square([2 * w, y1 - y0 - f]);
+            for (s = [-1, 1]) translate([s * (w - f), y0 + f]) circle(r = f);
+        }
     }
     else translate([0, cell_y]) square(20 + 2 * 0.3, center = true);
 }
