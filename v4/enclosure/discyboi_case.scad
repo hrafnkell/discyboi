@@ -1,4 +1,7 @@
-// discyboi v4 enclosure: base (glued under the disc's flight plate) + screw-on lid.
+// discyboi v4 enclosure, rev 2: base (glued under the disc's flight plate) + screw-on lid.
+// Rev 2 splits base and lid at the board's battery side and rounds the whole lid over, so the
+// case blends into the disc instead of standing off it as a box. Same footprint and height as
+// rev 1 (in git history), which had a flat lid plate with a small chamfer.
 //
 // The board sits component side DOWN in the base (towards the disc), so the battery side faces
 // the ground and the lid is the battery door. With the board top facing the disc's top, use the
@@ -8,8 +11,8 @@
 // (i.e. the KiCad top view mirrored left-right): the module and its antenna point to +y.
 //
 // Parts (set `part`): "assembly", "exploded", "base", "lid", "jig", "sight", "print" (base + lid laid out).
-// Hardware: 3 x M2 countersunk screws, 8 mm (self-tapping into the printed posts, or machine
-// screws into 2.0 mm holes tapped by the screw itself). Print in PETG or TPU, not PLA.
+// Hardware: 3 x M2 x 6 mm countersunk screws, self-tapping into 1.7 mm pilot holes in the base.
+// The heads sit in counterbores in the rounded lid. Print in PETG or TPU, not PLA.
 
 /* [What to render] */
 part = "exploded";            // [assembly, exploded, base, lid, jig, sight, print]
@@ -32,7 +35,8 @@ lid_t = 1.2;
 win_t = 0.4;                  // floor thickness over the LEDs (print the base in a translucent colour)
 press = 0.25;                 // how hard the lid boss pushes on the clip / LiPo (interference)
 post_angles = [90, 210, 330];
-lip = 0.8;                    // chamfer on the lid's outer edge
+round_r = 0;                  // radius of the lid's round-over; 0 = largest that clears the battery
+screw_l = 6;                  // countersunk screw length (sets how deep the heads are sunk)
 charge_notch = false;         // wire slot for charging a LiPo build (CHG pads face the disc)
 
 /* [Centring jig] */
@@ -58,14 +62,45 @@ z_lid = H - lid_t;                      // underside of the lid plate = top of t
 hole_d = 1.7;                           // M2 self-tap pilot
 post_r = r_in + hole_d / 2 + 0.9;       // post centre radius (hole clears the pocket wall)
 lobe_r = hole_d / 2 + 1.5;
-lid_post_t = 2.4;                       // lid thickness at the screws (room for the countersink)
-z_post = H - lid_post_t;                // top of the base posts
+// Largest round-over that keeps >= 1 mm of lid over the clip's corners (coin) or the pouch (LiPo).
+R = round_r > 0 ? round_r : (battery == "coin" ? 5.0 : 3.0);
+z_round = H - R;                        // where the round-over starts; below it the wall is vertical
+tip_z = floor_t;                        // screw tips stop here (never through the floor into the tape)
+z_head = tip_z + screw_l;               // top of the screw heads, sunk into counterbores
+low_h = 1.0;                            // lid clearance over the clip's solder tabs
 
 // board-frame features (KiCad top view (xk, yk) -> here (-xk, -yk))
 function k2s(p) = [-p[0], -p[1]];
 LED_D1 = k2s([-4.6, -1.2]);             // green status LED (top side, faces the disc)
 LED_D2 = k2s([11.0, 5.2]);              // red charge LED (LiPo build)
 TAB_A = [12.9, cell_y];                 // clip tab pads (bottom side)
+
+// BAT-HLD-003-SMT seen from the lid: 21.1 wide, 19.8 long, closed end (towards -y) chamfered
+// about 5.3 x 5.5 mm, open end towards the module. `ch` < 5.3 keeps the model conservative.
+module clip2d(grow = 0, ch = 5.3) {
+    y0 = cell_y - 10.45; y1 = cell_y + 9.35; w = 10.55;
+    offset(delta = grow) polygon([[-w, y1], [w, y1], [w, y0 + ch], [w - ch, y0], [-w + ch, y0], [-w, y0 + ch]]);
+}
+
+// Space the lid has to leave above the board for the battery.
+module cell2d() {
+    if (battery == "coin") {
+        clip2d(0.4, 4.0);
+        translate([0, cell_y]) circle(d = 20 + 2 * 0.4);   // the cell pokes 0.65 mm out of the open end
+    }
+    else translate([0, cell_y]) square(20 + 2 * 0.3, center = true);
+}
+
+// Outer shape of the closed case: the footprint, straight up to z_round, then a quarter-round
+// of radius R. The footprint is convex, so hulling inset slices gives the exact rounded solid.
+module shell() {
+    n = 12;
+    linear_extrude(z_round + 0.01) outline2d();
+    for (i = [0 : n - 1]) hull() for (j = [i, i + 1]) {
+        a = 90 * j / n;
+        translate([0, 0, z_round + R * sin(a)]) linear_extrude(0.01) offset(r = -R * (1 - cos(a))) outline2d();
+    }
+}
 
 module outline2d(extra = 0) {
     hull() {
@@ -84,71 +119,57 @@ module board2d(grow = 0) {
 module post_xy() { for (a = post_angles) rotate(a) translate([post_r, 0]) children(); }
 
 // ------------------------------------------------------------------ base
+// Everything below the board's battery side (z_bot): floor, pocket, ledge, keys and the screw
+// lobes. Its top face is flush with the board's bottom, and the lid sits on both.
 module base() {
     difference() {
         union() {
-            difference() {
-                linear_extrude(z_lid) outline2d();
-                translate([0, 0, floor_t]) cylinder(r = r_in, h = H);
-            }
-            // rim ledge the board's top face rests on (outside every top-side part)
-            difference() {
-                cylinder(r = r_in, h = z_top);
-                cylinder(r = pcb_r - 0.4, h = H);
-            }
-            // keys along the board's flat: support it there and stop it rotating.
-            // |x| < 4.6 stays open for the module's antenna overhang.
             intersection() {
-                cylinder(r = r_in, h = z_bot);
-                for (s = [-1, 1]) translate([s > 0 ? 4.6 : -50, pcb_flat + clr, 0]) cube([50 - 4.6, 20, z_bot]);
-            }
-            // screw posts, trimmed back to the pocket wall
-            difference() {
-                post_xy() cylinder(r = lobe_r, h = z_post);
-                translate([0, 0, floor_t]) cylinder(r = r_in, h = H);
+                shell();
+                translate([-50, -50, 0]) cube([100, 100, z_bot]);
             }
         }
-        post_xy() translate([0, 0, z_post - 6]) cylinder(d = hole_d, h = 7);
-        // recess for the lid's thicker screw bosses
-        post_xy() translate([0, 0, z_post]) cylinder(r = lobe_r + 0.2, h = H);
+        // pocket above the floor, minus the ledge and keys added back below
+        translate([0, 0, floor_t]) cylinder(r = r_in, h = H);
+        post_xy() translate([0, 0, tip_z - 0.2]) cylinder(d = hole_d, h = H);
         // thin windows over the LEDs
         for (p = [LED_D1, LED_D2]) translate([p[0], p[1], win_t]) cylinder(d = 3.2, h = floor_t);
         if (charge_notch)
             rotate(265) translate([r_in - 1, -1.5, floor_t]) cube([wall + 3, 3, top_h]);
     }
+    // rim ledge the board's top face rests on (outside every top-side part)
+    difference() {
+        cylinder(r = r_in, h = z_top);
+        cylinder(r = pcb_r - 0.4, h = H);
+    }
+    // keys along the board's flat: support it there and stop it rotating.
+    // |x| < 4.6 stays open for the module's antenna overhang.
+    intersection() {
+        cylinder(r = r_in, h = z_bot);
+        for (s = [-1, 1]) translate([s > 0 ? 4.6 : -50, pcb_flat + clr, 0]) cube([50 - 4.6, 20, z_bot]);
+    }
 }
 
 // ------------------------------------------------------------------ lid
+// The rounded cap above z_bot. Its flat underside clamps the board's battery side (nothing but
+// the clip is on that side), with a shallow recess over the clip's solder tabs and a deeper one
+// shaped to the clip (or pouch), with a boss in its ceiling that presses the middle down by `press`.
 module lid() {
     difference() {
-        union() {
-            // plate with a chamfered outer edge
-            hull() {
-                translate([0, 0, z_lid]) linear_extrude(lid_t - lip) outline2d();
-                translate([0, 0, H - 0.01]) linear_extrude(0.01) offset(delta = -lip) outline2d();
-            }
-            // thicker around the screws (into the space above the base posts)
-            difference() {
-                post_xy() translate([0, 0, z_post]) cylinder(r = lobe_r, h = lid_post_t);
-                cylinder(r = r_in, h = z_lid);
-            }
-            // clamp ring on the board rim, notched where the clip's tabs are soldered
-            difference() {
-                translate([0, 0, z_bot]) cylinder(r = r_in - 0.2, h = z_lid - z_bot);
-                cylinder(r = pcb_r - 0.5, h = H);
-                for (s = [-1, 1]) {
-                    t = [s * TAB_A[0], TAB_A[1]];
-                    rotate(atan2(t[1], t[0])) translate([pcb_r - 2, -4, 0]) cube([4, 8, H]);
-                }
-            }
-            // boss pressing the clip (coin) or the pouch (LiPo) onto the board
-            translate([0, cell_y, z_bot + bot_h - 0.3 - press]) cylinder(d = 8, h = 0.3 + press + 0.01);
-            // stop at the clip's open end so the cell can't slide out on impact
-            translate([-5, cell_y + 10.6, z_bot + 0.4]) cube([10, 1.2, z_lid - z_bot - 0.4]);
+        intersection() {
+            shell();
+            translate([-50, -50, z_bot]) cube([100, 100, H]);
+        }
+        for (s = [-1, 1]) translate([s * (TAB_A[0] + 0.5), TAB_A[1], z_bot - 0.01 + (low_h + 0.01) / 2]) cube([7.6, 7.2, low_h + 0.01], center = true);
+        // recess for the clip (or pouch), 0.2 mm clear of its top, minus a boss that presses its middle
+        difference() {
+            translate([0, 0, z_bot - 0.01]) linear_extrude(bot_h - 0.1 + 0.01) cell2d();
+            translate([0, cell_y, z_bot + bot_h - 0.3 - press]) cylinder(d = 8, h = 1);
         }
         post_xy() {
             cylinder(d = 2.3, h = H + 1);
-            translate([0, 0, H - 1.15]) cylinder(d1 = 2.3, d2 = 4.0, h = 1.16);
+            translate([0, 0, z_head - 1.15]) cylinder(d1 = 2.3, d2 = 4.0, h = 1.16);   // 90° countersink
+            translate([0, 0, z_head]) cylinder(d = 4.4, h = H);                          // counterbore
         }
     }
 }
@@ -195,7 +216,7 @@ module board_mock() {
     color("silver") translate([-3, 9.0 - 4.8, z_top - 2.0]) cube([6, 9.6, 2.0]);   // BC15M, antenna past the flat
     if (battery == "coin") {
         color("lightgrey") translate([0, cell_y, z_bot]) cylinder(d = 20, h = 3.2);
-        color("goldenrod") translate([-10.55, cell_y - 10.45, z_bot + 3.65]) cube([21.1, 19.8, 0.25]);   // clip (approx.)
+        color("goldenrod") translate([0, 0, z_bot + 3.65]) linear_extrude(0.25) clip2d();   // clip top plate
     } else {
         color("lightsteelblue") translate([-10, cell_y - 10, z_bot]) cube([20, 20, 4.5]);
     }
@@ -203,12 +224,12 @@ module board_mock() {
 
 // ------------------------------------------------------------------ output
 if (part == "base") base();
-else if (part == "lid") translate([0, 0, H]) rotate([180, 0, 0]) lid();
+else if (part == "lid") translate([0, 0, -z_bot]) lid();   // flat underside on the bed, dome up
 else if (part == "jig") jig();
 else if (part == "sight") sight();
 else if (part == "print") {
     base();
-    translate([2 * (post_r + lobe_r) + 4, 0, H]) rotate([180, 0, 0]) lid();
+    translate([2 * (post_r + lobe_r) + 4, 0, -z_bot]) lid();
 } else if (part == "assembly") {
     color("orange", 0.55) base();
     board_mock();
