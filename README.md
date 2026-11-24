@@ -20,7 +20,6 @@ Earlier revisions (v1: bare nRF54L15 + ADXL375, v2: Holyiot module, v3: the v4 d
 ## Layout
 
 ```
-NOTES.md               original design notes: part choices, power and mechanical considerations
 datasheets/            LSM6DSV320X IMU datasheet, TE/Linx coin-cell clip drawings (003 = CR2032, used on v4)
 v4/                    KiCad project for the current board
 v4/gen/                Python generators for v4's schematic, footprints and PCB (source of truth)

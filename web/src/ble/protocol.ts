@@ -119,5 +119,64 @@ export function encodeStatus(s: DeviceStatus): DataView {
   return dv;
 }
 
-// Raw capture download (Data characteristic, packet types 0x00 header / 0x01 samples / 0x02 end)
-// is not used yet; see firmware/README.md "Raw download" when adding it.
+// ---------------------------------------------------------------- raw capture download
+// Data characteristic, see firmware/README.md "Raw download". A saved capture file is the
+// 32-byte header packet as sent, followed by len * sampleSize bytes of samples.
+export const CAPTURE_HEADER_SIZE = 32;
+
+export interface CaptureHeader {
+  version: number;
+  sampleSize: number;
+  throwId: number;
+  len: number;
+  pullIdx: number;
+  releaseIdx: number;
+  odrHz: number;
+}
+
+export function parseCaptureHeader(dv: DataView): CaptureHeader {
+  return {
+    version: dv.getUint8(1),
+    sampleSize: dv.getUint16(2, true),
+    throwId: dv.getUint32(4, true),
+    len: dv.getUint16(8, true),
+    pullIdx: dv.getUint16(10, true),
+    releaseIdx: dv.getUint16(12, true),
+    odrHz: dv.getUint16(14, true),
+  };
+}
+
+/** Puts the packets of one download back together. feed() returns the file once the end packet arrives. */
+export class CaptureAssembler {
+  header?: CaptureHeader;
+  private file?: Uint8Array;
+  private got = 0;
+
+  /** Fraction received, 0..1. */
+  get progress(): number {
+    return this.header?.len ? this.got / this.header.len : 0;
+  }
+
+  feed(dv: DataView): Uint8Array | undefined {
+    const type = dv.getUint8(0);
+    if (type === 0x00) {
+      if (dv.byteLength < CAPTURE_HEADER_SIZE) throw new Error('Short capture header');
+      this.header = parseCaptureHeader(dv);
+      this.file = new Uint8Array(CAPTURE_HEADER_SIZE + this.header.len * this.header.sampleSize);
+      this.file.set(new Uint8Array(dv.buffer, dv.byteOffset, CAPTURE_HEADER_SIZE));
+      this.got = 0;
+    } else if (type === 0x01) {
+      if (!this.header || !this.file) return undefined; // joined mid-download
+      const n = dv.getUint8(1), first = dv.getUint16(2, true), size = this.header.sampleSize;
+      if (first + n > this.header.len || dv.byteLength < 4 + n * size) throw new Error('Bad capture packet');
+      this.file.set(new Uint8Array(dv.buffer, dv.byteOffset + 4, n * size), CAPTURE_HEADER_SIZE + first * size);
+      this.got += n;
+    } else if (type === 0x02) {
+      const status = dv.getUint8(1);
+      if (status === 2) throw new Error('The disc has no capture to send, or is busy');
+      if (status !== 0 || !this.header || !this.file || this.got !== this.header.len) throw new Error('Capture download was cut short');
+      return this.file;
+    }
+    return undefined;
+  }
+}

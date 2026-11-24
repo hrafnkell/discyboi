@@ -18,6 +18,7 @@ export interface ThrowRecord {
   summary: { distance: number; carry: number; lateral: number; apex: number; flightTime: number };
   actualDistance?: number; // measured by the player, for future model calibration
   note?: string; // free text, e.g. what the player was working on
+  capture?: boolean; // the raw sensor recording is saved on the server (/api/captures/<id>)
   noSim?: boolean; // the disc reported no valid speed: release angles only, no flight simulated
 }
 

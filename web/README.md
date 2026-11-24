@@ -44,7 +44,7 @@ Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over http
 A separate page for reviewing throws, reached from **Throws →** in the flight lab's top bar. It doesn't need WebGL, so it also works on phones. It suits field work, where the release numbers matter more than the 3D flight.
 
 - **Live:** it updates as throws arrive. You can connect the disc on this page, and throws recorded in a flight-lab tab also show up straight away (the tabs share localStorage).
-- **Recording:** the disc, hand and board mount used for throws from the disc. *Follow latest* opens each new throw in the detail view. *Speak* reads out each new throw: the metrics you've set targets for, otherwise speed, nose and hyzer.
+- **Recording:** the disc, hand and board mount used for throws from the disc. *Follow latest* opens each new throw in the detail view. *Speak* reads out each new throw: the metrics you've set targets for, otherwise speed, nose and hyzer. *Save raw data* fetches the full sensor recording from the disc after each throw (about 86 KB, several seconds, and the disc ignores throws until it's done). Signed in, it is stored with the throw, which then shows `disc +raw` in the list; signed out, it downloads as a `.bin` file. The file is the 32-byte header packet followed by the samples, as described under "Raw download" in `firmware/README.md`.
 - **Latest throw:** big tiles for speed, spin, hyzer, nose, launch, angle of attack, wobble and simulated distance, each with the difference from the average of the other throws in range.
 - **Range:** *Session* (since you pressed *New session*), today, 7 days or all.
 - **Trend:** one metric over the throws in range. Dashed line is the mean, the shaded band is the target. Click a dot to open that throw.
@@ -78,7 +78,7 @@ The server is `bun run server`: `server/main.ts` (Bun.serve) and `server/db.ts` 
 
 Over plain http on a LAN the session cookie and password travel unencrypted. That's fine at home, but put it behind https (e.g. `tailscale serve`, which Web Bluetooth also needs) before using it anywhere else, and set sign-up to `closed` once your accounts exist if the server is reachable from the internet.
 
-API (JSON, cookie session): `GET /api/me`, `POST /api/signup|login|logout|password`, `GET /api/throws`, `POST /api/throws` (bulk upsert, ≤1000), `DELETE /api/throws[/id]`, `GET /api/events` (SSE: put / del / clear).
+API (JSON, cookie session): `GET /api/me`, `POST /api/signup|login|logout|password`, `GET /api/throws`, `POST /api/throws` (bulk upsert, ≤1000), `DELETE /api/throws[/id]`, `GET /api/events` (SSE: put / del / clear / prefs), `GET|PUT /api/prefs` (shared session start), `GET|PUT /api/captures/<throw id>` (raw sensor recording, binary, ≤256 KB, newest 1000 kept).
 
 ## Flight model (`src/sim/`)
 

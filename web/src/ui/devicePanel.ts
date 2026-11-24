@@ -68,6 +68,11 @@ export class DevicePanel {
     }
   }
 
+  /** Raw sensor recording of the latest throw. Rejects if the disc can't provide one. */
+  downloadCapture(): Promise<Uint8Array> {
+    return this.dev?.downloadCapture?.() ?? Promise.reject(new Error('This disc connection has no raw download'));
+  }
+
   private render() {
     const on = !!this.dev;
     keepAwake(on);
@@ -83,7 +88,7 @@ export class DevicePanel {
     const s = this.status;
     const bat = this.battery !== undefined ? `${this.battery}%` : s ? `${(s.batteryMv / 1000).toFixed(2)} V` : '';
     const fw = this.dev!.firmware;
-    this.chip.textContent = [s?.state ?? 'connected', bat, s ? `${s.throws} throws` : '', fw ? `v${fw.split('+')[0]}` : ''].filter(Boolean).join(' · ');
+    this.chip.textContent = [s?.downloading ? 'sending raw data' : (s?.state ?? 'connected'), bat, s ? `${s.throws} throws` : '', fw ? `v${fw.split('+')[0]}` : ''].filter(Boolean).join(' · ');
     this.chip.title = `Firmware ${fw ?? 'older than 0.2.0'}`;
     this.chip.dataset.state = s?.state ?? '';
   }

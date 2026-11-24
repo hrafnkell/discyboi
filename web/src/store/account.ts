@@ -51,6 +51,16 @@ export const api = {
   put: (throws: ThrowRecord[]) => call<{ added: number; updated: number; rejected: number; dropped: number; count: number }>('POST', '/api/throws', { throws }),
   del: (id: string) => call<{ ok: true }>('DELETE', `/api/throws/${encodeURIComponent(id)}`),
   clear: () => call<{ ok: true }>('DELETE', '/api/throws'),
+  /** Stores the raw sensor recording that belongs to a throw. */
+  putCapture: async (id: string, bytes: Uint8Array) => {
+    let res: Response;
+    try {
+      res = await fetch(`/api/captures/${encodeURIComponent(id)}`, { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes as BodyInit });
+    } catch {
+      throw new ApiError(0, 'Server unreachable');
+    }
+    if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  },
   prefs: () => call<{ prefs: Prefs }>('GET', '/api/prefs'),
   setPrefs: (p: Prefs) => call<{ ok: true }>('PUT', '/api/prefs', p),
 };

@@ -43,6 +43,13 @@ export class Db {
         PRIMARY KEY (user_id, id)
       );
       CREATE INDEX IF NOT EXISTS throws_user_ts ON throws(user_id, ts DESC);
+      CREATE TABLE IF NOT EXISTS captures (   -- raw sensor recording of a throw, as sent by the disc
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        id TEXT NOT NULL,                     -- the throw's id
+        created INTEGER NOT NULL,
+        data BLOB NOT NULL,
+        PRIMARY KEY (user_id, id)
+      );
       CREATE TABLE IF NOT EXISTS prefs (      -- small per-account settings shared by all devices
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         data TEXT NOT NULL,
@@ -133,11 +140,24 @@ export class Db {
   }
 
   deleteThrow(userId: number, id: string): boolean {
+    this.sql.query('DELETE FROM captures WHERE user_id = ? AND id = ?').run(userId, id);
     return this.sql.query('DELETE FROM throws WHERE user_id = ? AND id = ?').run(userId, id).changes > 0;
   }
 
   clearThrows(userId: number) {
+    this.sql.query('DELETE FROM captures WHERE user_id = ?').run(userId);
     this.sql.query('DELETE FROM throws WHERE user_id = ?').run(userId);
+  }
+
+  // ---------------------------------------------------------- captures
+  /** Stores a capture and drops the oldest ones beyond `max`. */
+  putCapture(userId: number, id: string, data: Uint8Array, max: number) {
+    this.sql.query('INSERT INTO captures (user_id, id, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, id) DO UPDATE SET created = excluded.created, data = excluded.data').run(userId, id, Date.now(), data);
+    this.sql.query('DELETE FROM captures WHERE user_id = ? AND id IN (SELECT id FROM captures WHERE user_id = ? ORDER BY created DESC LIMIT -1 OFFSET ?)').run(userId, userId, max);
+  }
+
+  getCapture(userId: number, id: string): Uint8Array | undefined {
+    return this.sql.query<{ data: Uint8Array }, [number, string]>('SELECT data FROM captures WHERE user_id = ? AND id = ?').get(userId, id)?.data;
   }
 
   // ------------------------------------------------------------- prefs

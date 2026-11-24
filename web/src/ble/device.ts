@@ -1,6 +1,9 @@
 /** Web Bluetooth connection to a discyboi. Chrome / Edge (desktop, Android) on https or localhost. */
 import {
+  CaptureAssembler,
   CONTROL_UUID,
+  CTRL_DOWNLOAD,
+  DATA_UUID,
   CTRL_IDENTIFY,
   DEVICE_NAME,
   INFO_UUID,
@@ -20,6 +23,8 @@ export interface DiscDevice {
   connect(): Promise<void>;
   disconnect(): void;
   identify(): Promise<void>;
+  /** Downloads the raw sensor recording of the latest throw (see CaptureAssembler for the format). */
+  downloadCapture?(): Promise<Uint8Array>;
   onThrow?: (r: ThrowResult) => void;
   onStatus?: (s: DeviceStatus) => void;
   onBattery?: (percent: number) => void;
@@ -41,6 +46,8 @@ export class BleDisc implements DiscDevice {
   onDisconnect?: () => void;
   private device?: BluetoothDevice;
   private control?: BluetoothRemoteGATTCharacteristic;
+  private data?: BluetoothRemoteGATTCharacteristic;
+  private downloading = false;
   private lastThrowId = -1;
 
   async connect() {
@@ -77,6 +84,13 @@ export class BleDisc implements DiscDevice {
 
     this.control = await svc.getCharacteristic(CONTROL_UUID);
 
+    try {
+      this.data = await svc.getCharacteristic(DATA_UUID);
+      await this.data.startNotifications();
+    } catch {
+      this.data = undefined; // raw download just isn't offered
+    }
+
     this.firmware = undefined;
     try {
       const info = await svc.getCharacteristic(INFO_UUID);
@@ -105,6 +119,44 @@ export class BleDisc implements DiscDevice {
 
   disconnect() {
     this.device?.gatt?.disconnect();
+  }
+
+  downloadCapture(): Promise<Uint8Array> {
+    const data = this.data, control = this.control, device = this.device;
+    if (!data || !control || !device) return Promise.reject(new Error('Raw download is not available on this connection'));
+    if (this.downloading) return Promise.reject(new Error('A download is already running'));
+    this.downloading = true;
+    return new Promise<Uint8Array>((resolve, reject) => {
+      const asm = new CaptureAssembler();
+      let quiet: ReturnType<typeof setTimeout>;
+      const done = (fn: () => void) => {
+        clearTimeout(quiet);
+        data.removeEventListener('characteristicvaluechanged', onPacket);
+        device.removeEventListener('gattserverdisconnected', onGone);
+        this.downloading = false;
+        fn();
+      };
+      const fail = (e: unknown) => done(() => reject(e instanceof Error ? e : new Error(String(e))));
+      // The link is slow but steady: silence for this long means it stalled.
+      const arm = () => {
+        clearTimeout(quiet);
+        quiet = setTimeout(() => fail(new Error('Capture download timed out')), 8000);
+      };
+      const onGone = () => fail(new Error('Disconnected during the download'));
+      const onPacket = () => {
+        arm();
+        try {
+          const file = asm.feed(data.value!);
+          if (file) done(() => resolve(file));
+        } catch (e) {
+          fail(e);
+        }
+      };
+      data.addEventListener('characteristicvaluechanged', onPacket);
+      device.addEventListener('gattserverdisconnected', onGone);
+      arm();
+      control.writeValueWithResponse(new Uint8Array([CTRL_DOWNLOAD])).catch(fail);
+    });
   }
 
   async identify() {

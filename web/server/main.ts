@@ -22,6 +22,8 @@ const SESSION_TTL = 60 * 24 * 3600e3; // 60 days
 const COOKIE = 'discyboi_session';
 const MAX_THROW_BYTES = 16 * 1024;
 const MAX_BULK = 1000;
+const MAX_CAPTURE_BYTES = 256 * 1024; // a full capture is 86 KB
+const MAX_CAPTURES = Number(env.DISCYBOI_MAX_CAPTURES ?? 1000);
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = new Db(DB_PATH);
@@ -258,6 +260,22 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
       publish(user.id, { op: 'clear' });
       return json({ ok: true });
     }
+  }
+
+  const cm = /^\/api\/captures\/([^/]+)$/.exec(path);
+  if (cm && (method === 'PUT' || method === 'GET')) {
+    const id = decodeURIComponent(cm[1]);
+    if (!THROW_ID.test(id)) return err(400, 'Bad id');
+    if (method === 'GET') {
+      const data = db.getCapture(user.id, id);
+      if (!data) return err(404, 'No capture for that throw');
+      return new Response(data as BodyInit, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="discyboi-capture-${id}.bin"`, 'Cache-Control': 'no-store', ...SEC_HEADERS } });
+    }
+    if (Number(req.headers.get('content-length') ?? 0) > MAX_CAPTURE_BYTES) return err(413, 'Capture too large');
+    const data = new Uint8Array(await req.arrayBuffer());
+    if (data.length < 32 || data.length > MAX_CAPTURE_BYTES) return err(400, 'Not a capture');
+    db.putCapture(user.id, id, data, MAX_CAPTURES);
+    return json({ ok: true });
   }
 
   if (path === '/api/prefs') {

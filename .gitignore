@@ -17,3 +17,5 @@ bootloader/
 .pydeps/
 keys/
 firmware/app/src/build_id.h
+# local notes
+NOTES.md

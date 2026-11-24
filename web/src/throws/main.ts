@@ -10,6 +10,7 @@ import { FLAG_ANGLES_VALID, FLAG_LANDED, FLAG_REF_APPROX, FLAG_SPEED_VALID, FLAG
 import { DISCS } from '../sim/discs';
 import { simulate } from '../sim/flight';
 import type { DiscSpec, FlightResult } from '../sim/types';
+import { api } from '../store/account';
 import { discThrow } from '../store/record';
 import { loadSettings, read, saveSettings, ThrowStore, write, type ThrowRecord } from '../store/throws';
 import { AccountPanel } from '../ui/accountPanel';
@@ -27,12 +28,13 @@ interface UiState {
   follow: boolean;
   speak: boolean;
   discId: string;
+  rawSave: boolean;
   source: 'all' | 'disc' | 'lab';
   style: 'all' | 'BH' | 'FH';
   sort: { key: string; dir: 1 | -1 };
 }
 const UI_KEY = 'discyboi.historyui.v1';
-const ui: UiState = { range: 'session', sessionStart: Date.now() - 3 * 3600e3, targets: {}, trendKey: 'nose', follow: true, speak: false, discId: 'drv-stable', source: 'all', style: 'all', sort: { key: 'time', dir: -1 }, ...read<Partial<UiState>>(UI_KEY, {}) };
+const ui: UiState = { range: 'session', sessionStart: Date.now() - 3 * 3600e3, targets: {}, trendKey: 'nose', follow: true, speak: false, discId: 'drv-stable', rawSave: false, source: 'all', style: 'all', sort: { key: 'time', dir: -1 }, ...read<Partial<UiState>>(UI_KEY, {}) };
 const saveUi = () => write(UI_KEY, ui);
 
 const settings = loadSettings();
@@ -99,6 +101,27 @@ function onDiscThrow(r: ThrowResult) {
   const rec = store.add(t.rec); // onChange re-renders and treats it as new
   if (t.flight) flights.set(rec.id, t.flight);
   if (!t.flight) toast(`Throw #${r.throwId}: no valid speed, angles only`, 'err');
+  if (ui.rawSave) void saveCapture(rec.id, r.throwId);
+}
+
+/** Fetches the raw sensor recording of the throw just made: to the account, or as a file when signed out. */
+async function saveCapture(recId: string, throwId: number) {
+  try {
+    const file = await device.downloadCapture();
+    if (new DataView(file.buffer).getUint32(4, true) !== throwId) throw new Error('the disc had already moved on to another throw');
+    if (store.account) {
+      await api.putCapture(recId, file);
+      store.update(recId, { capture: true });
+      toast(`Throw #${throwId}: raw data saved`);
+    } else {
+      const a = h('a', { href: URL.createObjectURL(new Blob([file as BlobPart])), download: `discyboi-capture-${throwId}.bin` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      toast(`Throw #${throwId}: raw data downloaded (sign in to keep it with the throw)`);
+    }
+  } catch (e) {
+    toast(`Throw #${throwId}: raw data not saved, ${e instanceof Error ? e.message : e}`, 'err');
+  }
 }
 const device = new DevicePanel(fake, onDiscThrow, toast);
 const account = new AccountPanel(store, toast);
@@ -136,6 +159,7 @@ const recCard = h('section.card.reccard', {},
       saveUi();
       if (v) speak('Speaking new throws');
     }, 'Read out the numbers of each new throw, so you can keep your eyes off the screen'),
+    toggle('Save raw data', () => ui.rawSave, (v) => ((ui.rawSave = v), saveUi()), 'After each throw, fetch the full sensor recording from the disc for later analysis. Takes several seconds, and the disc ignores throws until it is done.'),
   ),
 );
 
@@ -344,7 +368,7 @@ function renderTable() {
         h('td.cmp', {}, cb, slot >= 0 ? h('span.slot', { style: `background:${SERIES[slot]}` }, LETTERS[slot]) : null),
         h('td.n', {}, String(num.get(r.id))),
         h('td.time', {}, timeStr(r.ts)),
-        h('td', {}, h('span.swatch', { style: `background:${r.disc.color}` }), ' ', r.source === 'disc' ? h('span.tag', {}, r.anglesEstimated ? 'disc*' : 'disc') : h('span.tag.man', { title: 'Entered in the flight lab' }, 'lab')),
+        h('td', {}, h('span.swatch', { style: `background:${r.disc.color}` }), ' ', r.source === 'disc' ? h('span.tag', { title: r.capture ? 'From the disc, raw data saved' : 'From the disc' }, `${r.anglesEstimated ? 'disc*' : 'disc'}${r.capture ? ' +raw' : ''}`) : h('span.tag.man', { title: 'Entered in the flight lab' }, 'lab')),
         h('td', {}, h(`span.tag.${r.params.style === 'FH' ? 'fh' : 'bh'}`, { title: `${r.params.hand === 'R' ? 'Right' : 'Left'}-hand ${r.params.style === 'FH' ? 'forehand' : 'backhand'}` }, r.params.style)),
         ...COLS.map((k) => {
           const m = metric(k);
