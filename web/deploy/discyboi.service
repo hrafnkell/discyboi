@@ -1,0 +1,18 @@
+# systemd *user* unit for the discyboi web app + API. Installed by deploy/deploy.sh to
+# ~/.config/systemd/user/discyboi.service. Needs lingering: sudo loginctl enable-linger <user>
+[Unit]
+Description=discyboi – disc flight tracker (Bun + SQLite)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/srv/discyboi
+# Server settings (PORT, DISCYBOI_*) live in .env next to the code; deploys never overwrite it.
+EnvironmentFile=-%h/srv/discyboi/.env
+ExecStart=%h/.bun/bin/bun server/main.ts
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

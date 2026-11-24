@@ -13,3 +13,6 @@ fail.json
 # editors / OS
 .DS_Store
 *.swp
+bootloader/
+.pydeps/
+keys/

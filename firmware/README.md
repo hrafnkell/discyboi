@@ -2,16 +2,26 @@
 
 Zephyr firmware for the [v3 board](../v3/README.md). It detects throws with the two LSM6DSV320X IMUs, works out release speed, angles and spin, and reports them over BLE. It can also send the raw 3-second capture of each throw so the algorithms can be refined offline.
 
-**Status: runs on the v4 board.** First boot on 2026-11-23: both IMUs answer (3 blinks) and motion moves the state machine from IDLE to ARMED. Bluetooth and real throws are still to be checked. The analysis maths is tested on the host with synthetic throws (`test/`), and the thresholds will need tuning against real throws.
+**Status: runs on the v4 board.** It now boots through MCUboot and takes updates over Bluetooth (not yet tried on hardware). First boot on 2026-11-23: both IMUs answer (3 blinks) and motion moves the state machine from IDLE to ARMED. Bluetooth and real throws are still to be checked. The analysis maths is tested on the host with synthetic throws (`test/`), and the thresholds will need tuning against real throws.
 
 ## Building
 
 ```sh
-./build.sh            # first run fetches Zephyr v4.0 (+ Nordic HAL) into this folder
+./build.sh            # first run fetches Zephyr v4.0 (+ Nordic HAL, MCUboot) into this folder
 ./build.sh pristine   # clean build
 ```
 
-The build runs in the `zmkfirmware/zmk-build-arm:stable` Docker image, which uses Zephyr SDK 0.16.9. No local toolchain is needed. The output is `build/zephyr/zephyr.hex`.
+The build runs in the `zmkfirmware/zmk-build-arm:stable` Docker image, which uses Zephyr SDK 0.16.9. No local toolchain is needed. MCUboot's signing tool needs a few Python packages the image lacks, so the first run installs them into `.pydeps/` with the host's `pip`.
+
+The build makes MCUboot and the app (sysbuild) and signs the app:
+
+| File | Use |
+|---|---|
+| `build/merged.hex` | MCUboot + app. The first, wired flash. |
+| `build/app/zephyr/zephyr.signed.bin` | The app alone. Updates over Bluetooth. |
+| `build/app/zephyr/zephyr.elf` | Symbols, for the RTT log. |
+
+**Signing key:** `keys/discyboi-ec-p256.pem` is created on the first build and is not in git. **Back it up.** A board running MCUboot only accepts updates signed with that key, so without it the board needs another wired flash.
 
 - **Zephyr:** upstream, not the nRF Connect SDK. It uses the open-source Bluetooth controller (`BT_LL_SW_SPLIT`).
 - **Board:** `discyboi/nrf54l15/cpuapp`, defined in `app/boards/discyboi/`. v3 and v4 boards share the pinout.
@@ -46,10 +56,12 @@ This is the cheapest route, and the one used for first bring-up.
 ```sh
 probe-rs info                                            # debug port should be Nordic, part 0x1c0
 probe-rs erase --chip nRF54L15 --allow-erase-all         # first time only: a new nRF54L15 is locked
-probe-rs run --chip nRF54L15 build/zephyr/zephyr.elf     # flash, reset and show the RTT log
+probe-rs download --chip nRF54L15 --binary-format hex build/merged.hex   # MCUboot + app
+probe-rs reset --chip nRF54L15
+probe-rs attach --chip nRF54L15 build/app/zephyr/zephyr.elf               # RTT log
 ```
 
-- `probe-rs run` takes the **.elf**, not the .hex. The .elf also tells it where the RTT log buffer is.
+- Flash **merged.hex**: it holds MCUboot and the *signed* app. MCUboot refuses an unsigned image, so `probe-rs run …/zephyr.elf` flashes a board that never starts the app.
 - `probe-rs info` reports `debug entry not present` on the two memory APs even after unlocking. That's normal for this chip. To check that it's unlocked, read the erased flash with `probe-rs read --chip nRF54L15 b32 0x0 4`, which should return `ffffffff`.
 - probe-rs warns that RTT channels 1 and 2 aren't initialised. The log is on channel 0, so ignore it.
 - With power from the Pico and no cell, the battery reads a few hundred mV (0 %). That's expected.
@@ -60,12 +72,26 @@ Connect through the Tag-Connect TC2030 on J2, then run these on the host, not in
 
 ```sh
 nrfutil device recover                                   # first time only: a new nRF54L15 may be locked
-nrfutil device program --firmware build/zephyr/zephyr.hex --options chip_erase_mode=ERASE_RANGES_TOUCHED_BY_FIRMWARE
+nrfutil device program --firmware build/merged.hex --options chip_erase_mode=ERASE_RANGES_TOUCHED_BY_FIRMWARE
 nrfutil device reset
 JLinkRTTViewer   # or JLinkRTTLogger: logs go over RTT (there's no UART)
 ```
 
 **LED at boot:** 3 blinks means everything is up. 10 fast blinks means an IMU didn't answer; the RTT log says which one.
+
+### Updates over Bluetooth
+
+Once MCUboot is on the board, the app is updated over Bluetooth and the debug leads aren't needed. The firmware runs the mcumgr SMP service next to the discyboi service.
+
+1. Build, then copy `build/app/zephyr/zephyr.signed.bin` to your phone.
+2. Disconnect the web app: the disc takes one connection at a time.
+3. In **nRF Connect Device Manager** (Android/iOS), pick `discyboi`, then Image → Firmware Upgrade. Select the file and choose mode **Test only**. From a PC, the `mcumgr` CLI works too: `mcumgr --conntype ble --connstring peer_name=discyboi image upload zephyr.signed.bin`, then `image test <hash>` and `reset`.
+4. The disc resets, MCUboot swaps in the new image and the app boots. If both IMUs answer, the app confirms the new image itself (RTT: `new firmware confirmed`).
+
+If the new image crashes or an IMU fails on that first boot, it isn't confirmed, and the next reset brings back the previous firmware. Pull and refit the cell to force that reset.
+
+- **Signature:** MCUboot only boots images signed with `keys/discyboi-ec-p256.pem`. The SMP service itself is open, though: anyone in range can upload, but only a signed image ever runs.
+- **First boot after an update takes a few seconds longer** while MCUboot swaps the slots. Don't pull the cell during that time. The swap resumes after a power cut, but there's no reason to test that.
 
 ## How it works
 

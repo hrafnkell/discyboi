@@ -69,7 +69,8 @@ function sameOrigin(req: Request): boolean {
 function clientIp(req: Request, server: Bun.Server<undefined>): string {
   if (TRUST_PROXY) {
     const f = req.headers.get('x-forwarded-for');
-    if (f) return f.split(',')[0].trim();
+    // The proxy appends the address it saw, so the last entry is the one a client can't forge.
+    if (f) return f.split(',').at(-1)!.trim();
   }
   return server.requestIP(req)?.address ?? '?';
 }

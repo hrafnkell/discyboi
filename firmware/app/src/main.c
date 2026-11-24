@@ -1,5 +1,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/dfu/mcuboot.h>
 
 #include "discy.h"
 
@@ -22,5 +23,17 @@ int main(void)
 	err = capture_start();
 	/* 3 blinks: all good. 10 fast blinks: an IMU did not respond (see RTT log). */
 	led_blink(err ? 10 : 3);
+
+	/* A Bluetooth update boots once as a test. Keep it only if both IMUs came up; otherwise
+	 * the next reset (or flat battery) brings back the previous firmware. */
+	if (!boot_is_img_confirmed()) {
+		if (err) {
+			LOG_WRN("new firmware failed its first boot check: not confirming");
+		} else if (boot_write_img_confirmed()) {
+			LOG_ERR("could not confirm new firmware");
+		} else {
+			LOG_INF("new firmware confirmed");
+		}
+	}
 	return 0;
 }
