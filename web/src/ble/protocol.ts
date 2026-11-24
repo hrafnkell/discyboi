@@ -8,6 +8,8 @@ export const THROW_UUID = uuid(2);
 export const STATUS_UUID = uuid(3);
 export const CONTROL_UUID = uuid(4);
 export const DATA_UUID = uuid(5);
+/** Firmware version string, e.g. "0.2.0+0c1c28b". Missing on firmware before 0.2.0. */
+export const INFO_UUID = uuid(6);
 export const DEVICE_NAME = 'discyboi';
 
 export const CTRL_DOWNLOAD = 0x01;

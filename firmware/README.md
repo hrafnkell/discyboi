@@ -88,6 +88,8 @@ Once MCUboot is on the board, the app is updated over Bluetooth and the debug le
 3. In **nRF Connect Device Manager** (Android/iOS), pick `discyboi`, then Image → Firmware Upgrade. Select the file and choose mode **Test only**. From a PC, the `mcumgr` CLI works too: `mcumgr --conntype ble --connstring peer_name=discyboi image upload zephyr.signed.bin`, then `image test <hash>` and `reset`.
 4. The disc resets, MCUboot swaps in the new image and the app boots. If both IMUs answer, the app confirms the new image itself (RTT: `new firmware confirmed`).
 
+**Checking which firmware is running:** connect with the web app. The connect message and the status chip's tooltip show the version, for example `0.2.0+0c1c28b`: the number from `app/VERSION` plus the git commit the image was built from. `build.sh` prints the same string at the end of a build, and Device Manager shows the number for each slot. Bump `app/VERSION` when a build should be told apart by number.
+
 If the new image crashes or an IMU fails on that first boot, it isn't confirmed, and the next reset brings back the previous firmware. Pull and refit the cell to force that reset.
 
 - **Signature:** MCUboot only boots images signed with `keys/discyboi-ec-p256.pem`. The SMP service itself is open, though: anyone in range can upload, but only a signed image ever runs.
@@ -143,6 +145,7 @@ The device advertises as `discyboi` (connectable, ~0.5 s interval) with the stan
 | Status | `6d2b0003-…` | read, notify | `u8 state` (0 idle, 1 armed, 2 pull, 3 post, 4 flight), `u8 downloading`, `u16 battery_mv`, `u32 throws` |
 | Control | `6d2b0004-…` | write | `0x01` download the last capture, `0x02` abort the download, `0x10` blink the LED to identify the disc |
 | Data | `6d2b0005-…` | notify | Raw capture download |
+| Info | `6d2b0006-…` | read | Firmware version as text, `0.2.0+<git commit>` (`-dirty` if built from uncommitted changes) |
 
 **Throw result**
 

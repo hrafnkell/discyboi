@@ -24,6 +24,7 @@ const gauss = () => {
 
 export class FakeDisc implements DiscDevice {
   name = 'discyboi (fake)';
+  firmware = '0.2.0+fake';
   onThrow?: (r: ThrowResult) => void;
   onStatus?: (s: DeviceStatus) => void;
   onBattery?: (percent: number) => void;

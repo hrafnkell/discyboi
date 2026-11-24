@@ -58,7 +58,7 @@ export class DevicePanel {
     try {
       await dev.connect();
       this.dev = dev;
-      this.toast(`Connected to ${dev.name}`);
+      this.toast(`Connected to ${dev.name}, firmware ${dev.firmware ?? 'older than 0.2.0 (no version reported)'}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!/cancel/i.test(msg)) this.toast(`Bluetooth: ${msg}`, 'err');
@@ -77,11 +77,14 @@ export class DevicePanel {
     this.chip.classList.toggle('on', on);
     if (!on) {
       this.chip.textContent = 'no disc';
+      this.chip.title = 'Disc status';
       return;
     }
     const s = this.status;
     const bat = this.battery !== undefined ? `${this.battery}%` : s ? `${(s.batteryMv / 1000).toFixed(2)} V` : '';
-    this.chip.textContent = [s?.state ?? 'connected', bat, s ? `${s.throws} throws` : ''].filter(Boolean).join(' · ');
+    const fw = this.dev!.firmware;
+    this.chip.textContent = [s?.state ?? 'connected', bat, s ? `${s.throws} throws` : '', fw ? `v${fw.split('+')[0]}` : ''].filter(Boolean).join(' · ');
+    this.chip.title = `Firmware ${fw ?? 'older than 0.2.0'}`;
     this.chip.dataset.state = s?.state ?? '';
   }
 }

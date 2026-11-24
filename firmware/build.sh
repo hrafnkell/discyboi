@@ -12,6 +12,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 IMAGE=zmkfirmware/zmk-build-arm:stable
 PRISTINE=auto; [ "${1:-}" = pristine ] && PRISTINE=always
+# Stamp the git commit into the image (shown by the web app next to the version from app/VERSION).
+ID="$(git rev-parse --short HEAD 2>/dev/null || echo nogit)"
+[ -z "$(git status --porcelain -- . 2>/dev/null)" ] || ID="$ID-dirty"
+STAMP="#define DISCY_BUILD_ID \"$ID\""
+[ "$(cat app/src/build_id.h 2>/dev/null)" = "$STAMP" ] || echo "$STAMP" > app/src/build_id.h
 [ -d .pydeps ] || python3 -m pip install -q --target .pydeps cbor2 click cryptography
 docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e PYTHONPATH=/ws/.pydeps -v "$PWD:/ws" -w /ws "$IMAGE" bash -c "
   set -e
@@ -23,4 +28,5 @@ docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e PYTHONPATH=/ws/.pydeps -v
     -DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\\\"/ws/keys/discyboi-ec-p256.pem\\\"
   python3 -c 'from intelhex import IntelHex as H; m = H(\"build/mcuboot/zephyr/zephyr.hex\"); m.merge(H(\"build/app/zephyr/zephyr.signed.hex\")); m.write_hex_file(\"build/merged.hex\")'
 "
+echo "firmware $(sed -n 's/^VERSION_MAJOR = //p;s/^VERSION_MINOR = //p;s/^PATCHLEVEL = //p' app/VERSION | paste -sd.)+$ID"
 echo "-> build/merged.hex (first flash), build/app/zephyr/zephyr.signed.bin (Bluetooth update)"

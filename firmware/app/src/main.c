@@ -10,7 +10,7 @@ int main(void)
 {
 	int err;
 
-	LOG_INF("discyboi firmware");
+	LOG_INF("discyboi firmware %s", discy_fw_version);
 	if ((err = led_init())) {
 		LOG_ERR("LED init failed (%d)", err);
 	}

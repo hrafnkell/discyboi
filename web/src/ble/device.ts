@@ -3,6 +3,7 @@ import {
   CONTROL_UUID,
   CTRL_IDENTIFY,
   DEVICE_NAME,
+  INFO_UUID,
   parseStatus,
   parseThrowResult,
   SERVICE_UUID,
@@ -14,6 +15,8 @@ import {
 
 export interface DiscDevice {
   readonly name: string;
+  /** Firmware version, once connected. Undefined on firmware too old to report one. */
+  readonly firmware?: string;
   connect(): Promise<void>;
   disconnect(): void;
   identify(): Promise<void>;
@@ -31,6 +34,7 @@ export function bleSupport(): { ok: boolean; reason?: string } {
 
 export class BleDisc implements DiscDevice {
   name = DEVICE_NAME;
+  firmware?: string;
   onThrow?: (r: ThrowResult) => void;
   onStatus?: (s: DeviceStatus) => void;
   onBattery?: (percent: number) => void;
@@ -71,6 +75,14 @@ export class BleDisc implements DiscDevice {
     }
 
     this.control = await svc.getCharacteristic(CONTROL_UUID);
+
+    this.firmware = undefined;
+    try {
+      const info = await svc.getCharacteristic(INFO_UUID);
+      this.firmware = new TextDecoder().decode(await info.readValue());
+    } catch {
+      /* firmware before 0.2.0 has no Info characteristic */
+    }
 
     try {
       const bs = await server.getPrimaryService('battery_service');

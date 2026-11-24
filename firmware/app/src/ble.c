@@ -6,7 +6,9 @@
  *   Status  ...0003  read, notify   struct status (8 bytes)
  *   Control ...0004  write          1 byte opcode (see enum ctrl_op)
  *   Data    ...0005  notify         raw capture download (see send_capture())
+ *   Info    ...0006  read           firmware version string, "0.2.0+<git commit>"
  */
+#include <app_version.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
@@ -26,6 +28,22 @@ static const struct bt_uuid_128 uuid_throw = BT_UUID_INIT_128(UUID_DISCY(2));
 static const struct bt_uuid_128 uuid_status = BT_UUID_INIT_128(UUID_DISCY(3));
 static const struct bt_uuid_128 uuid_ctrl = BT_UUID_INIT_128(UUID_DISCY(4));
 static const struct bt_uuid_128 uuid_data = BT_UUID_INIT_128(UUID_DISCY(5));
+static const struct bt_uuid_128 uuid_info = BT_UUID_INIT_128(UUID_DISCY(6));
+
+/* build.sh writes build_id.h with the git commit the image was built from. */
+#if __has_include("build_id.h")
+#include "build_id.h"
+#else
+#define DISCY_BUILD_ID "local"
+#endif
+const char discy_fw_version[] = APP_VERSION_STRING "+" DISCY_BUILD_ID;
+
+static ssize_t read_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+			 uint16_t len, uint16_t offset)
+{
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, discy_fw_version,
+				 sizeof(discy_fw_version) - 1);
+}
 
 enum ctrl_op {
 	CTRL_DOWNLOAD = 0x01,  /* send the last capture on Data */
@@ -135,6 +153,9 @@ BT_GATT_SERVICE_DEFINE(discy_svc,
 	BT_GATT_CHARACTERISTIC(&uuid_data.uuid, BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_NONE, NULL, NULL,
 			       NULL),
 	BT_GATT_CCC(NULL, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+	/* New characteristics go at the end: the ATTR_ indices below must not move. */
+	BT_GATT_CHARACTERISTIC(&uuid_info.uuid, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_info, NULL,
+			       NULL),
 );
 
 /* Attribute indices in discy_svc.attrs */

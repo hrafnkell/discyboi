@@ -80,6 +80,7 @@ enum capture_state capture_state(void);
 uint32_t capture_throw_count(void);
 
 /* ble.c */
+extern const char discy_fw_version[];  /* "0.2.0+<git commit>" */
 int ble_init(void);
 void ble_publish_result(const struct throw_result *r);
 void ble_publish_status(void);

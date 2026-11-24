@@ -16,3 +16,4 @@ fail.json
 bootloader/
 .pydeps/
 keys/
+firmware/app/src/build_id.h
