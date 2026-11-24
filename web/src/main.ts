@@ -2,6 +2,7 @@ import './style.css';
 import * as THREE from 'three';
 import type { ThrowResult } from './ble/protocol';
 import { CAM_MODES, CameraRig, type CamMode } from './scene/cameras';
+import { AimLine } from './scene/aimLine';
 import { updateLabels } from './scene/labels';
 import { FlightView } from './scene/playback';
 import { ReleasePreview } from './scene/preview';
@@ -41,6 +42,7 @@ const world = new World(scene, renderer);
 const hole = () => practiceField(settings.basketDist);
 world.setHole(hole());
 const view = new FlightView(scene);
+const aimLine = new AimLine(scene);
 view.fmt = (m) => fmtDist(m, settings.units);
 const rig = new CameraRig(renderer.domElement);
 
@@ -72,6 +74,7 @@ const device = new DevicePanel(fake, (r) => onDiscThrow(r), toast);
 const account = new AccountPanel(store, toast);
 
 const camSeg = segmented<CamMode>(CAM_MODES, rig.mode, (m) => rig.setMode(m));
+rig.onAim = (d) => panel.nudgeAim(d);
 
 const unitsSeg = segmented<'m' | 'ft'>([{ id: 'm', label: 'm' }, { id: 'ft', label: 'ft' }], settings.units, (u) => {
   settings.units = u;
@@ -239,6 +242,9 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(timer.getDelta(), 0.1);
   view.update(dt);
   const pose = view.pose();
+  const aim = -(panel.params.headingDeg ?? 0);
+  rig.aimDeg = aim;
+  aimLine.set(aim, rig.mode === 'tee');
   rig.update(pose, dt);
   if (pose) stats.live(pose.vel.length());
   playBtn.textContent = view.playing ? '❚❚' : '▶';

@@ -25,7 +25,10 @@ Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over http
 - **Aim and wind:** aim left/right; wind speed and the direction it comes from.
 - **Keys:** `Space` throws, `R` replays, `1`–`5` switch camera (chase, tee, side, top, free).
 - **Free camera:** orbits the disc and follows it in flight. Left drag rotates around the disc, right drag (or two-finger drag) pans, scroll or pinch zooms. Switching to Free or making a new throw re-centres on the disc.
-- **Chase, side and top cameras:** scroll or pinch to zoom in or out; each view remembers its own zoom.
+- **Chase and side cameras:** drag to orbit around the disc, in flight or after it lands. Scroll or pinch to zoom.
+- **Top camera:** drag to move the map, scroll or pinch to zoom.
+- **Tee camera:** drag sideways to turn the aim (the Aim slider follows). A line with arrows on the ground shows the aim, and the camera looks down it until the next throw.
+- Each view keeps its own orbit, pan and zoom across throws. Double-click or double-tap resets the current view.
 - **Distance markers:** rings every 25 m, and ticks every 5 m along the centre line with a label every 25 m. Labels keep a minimum on-screen size when you zoom out.
 - **Landing marker:** shows the flight (carry) distance, the skip/slide after landing and the total. A red dot marks where the disc stopped.
 - **History:**

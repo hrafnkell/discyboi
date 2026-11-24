@@ -81,7 +81,12 @@ export class ThrowPanel {
     this.updateAoa();
   }
 
-  current(): ThrowParams {
+  /** Turn the aim by `d` degrees (+ = right), as a slider edit. Used by dragging in the tee view. */
+  nudgeAim(d: number) {
+    this.sl.heading.set(this.sl.heading.get() + d);
+  }
+
+    current(): ThrowParams {
     return { ...this.params, wind: windVector(this.wind) };
   }
 
