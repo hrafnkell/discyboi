@@ -18,6 +18,18 @@ export const FLAG_ANGLES_VALID = 1 << 0;
 export const FLAG_SPEED_VALID = 1 << 1;
 export const FLAG_SPIN_CENTRIP = 1 << 2;
 export const FLAG_LANDED = 1 << 3;
+/** No truly still moment before the throw: the calmest 100 ms was the reference, so speed and angles are approximate. */
+export const FLAG_REF_APPROX = 1 << 4;
+/** Why speed and angles are missing: the disc was never calm enough before the pull. */
+export const FLAG_NO_REF = 1 << 5;
+/** Why speed and angles are missing: the integrated release velocity was implausible. */
+export const FLAG_BAD_SPEED = 1 << 6;
+
+/** Why a throw has no speed, in words. Older firmware does not say, so the likely cause is given. */
+export function noSpeedReason(flags: number): string {
+  if (flags & FLAG_BAD_SPEED) return 'the measured release velocity was implausible';
+  return 'the disc was never held still in the 2.5 s before release';
+}
 
 export const THROW_RESULT_SIZE = 26;
 

@@ -34,6 +34,10 @@ const struct sample *capture_get(uint16_t i);
 #define RESULT_SPEED_VALID   BIT(1)
 #define RESULT_SPIN_CENTRIP  BIT(2)  /* gyro saturated; spin from rim-centre accel difference */
 #define RESULT_LANDED        BIT(3)  /* flight_ms measured to an impact / stop, not a timeout */
+#define RESULT_REF_APPROX    BIT(4)  /* no truly still moment: reference is the calmest 100 ms, so
+				      * speed and angles are approximate */
+#define RESULT_NO_REF        BIT(5)  /* why speed / angles are missing: nothing calm enough before the pull */
+#define RESULT_BAD_SPEED     BIT(6)  /* why speed / angles are missing: integrated velocity implausible */
 
 /* Throw summary, sent as-is over BLE (little-endian). */
 struct throw_result {

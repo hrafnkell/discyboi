@@ -6,7 +6,7 @@
 import '../style.css';
 import './throws.css';
 import type { ThrowResult } from '../ble/protocol';
-import { FLAG_ANGLES_VALID, FLAG_LANDED, FLAG_SPEED_VALID, FLAG_SPIN_CENTRIP } from '../ble/protocol';
+import { FLAG_ANGLES_VALID, FLAG_LANDED, FLAG_REF_APPROX, FLAG_SPEED_VALID, FLAG_SPIN_CENTRIP, noSpeedReason } from '../ble/protocol';
 import { DISCS } from '../sim/discs';
 import { simulate } from '../sim/flight';
 import type { DiscSpec, FlightResult } from '../sim/types';
@@ -398,7 +398,7 @@ function detailView(): HTMLElement {
     const flag = (bit: number, on: string, off: string) => h('li', { class: fl & bit ? 'ok' : 'no' }, fl & bit ? `✓ ${on}` : `✗ ${off}`);
     grid.push(h('div.dgroup', {}, h('h3', {}, `From the disc · #${r.raw.throwId}`), h('ul.flags', {},
       flag(FLAG_ANGLES_VALID, 'angles measured', 'angles estimated (no still moment before the throw)'),
-      flag(FLAG_SPEED_VALID, 'speed measured', 'no valid speed'),
+      flag(FLAG_SPEED_VALID, fl & FLAG_REF_APPROX ? 'speed and angles approximate (disc not held still before the throw)' : 'speed measured', `no valid speed: ${noSpeedReason(fl)}`),
       flag(FLAG_SPIN_CENTRIP, 'spin from the off-centre accelerometer (above gyro range)', 'spin from the gyro'),
       flag(FLAG_LANDED, 'landing detected', 'no landing detected'),
       h('li', {}, `battery ${(r.raw.batteryMv / 1000).toFixed(2)} V`),

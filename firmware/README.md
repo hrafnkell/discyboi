@@ -149,7 +149,7 @@ The device advertises as `discyboi` (connectable, ~0.5 s interval) with the stan
 | Field | Type | Unit |
 |---|---|---|
 | throw_id | u32 | |
-| flags | u16 | bit0 angles valid, bit1 speed valid, bit2 spin from centripetal, bit3 landing detected |
+| flags | u16 | bit0 angles valid, bit1 speed valid, bit2 spin from centripetal, bit3 landing detected, bit4 reference was only a calm (not still) moment, so speed and angles are approximate, bit5 no speed/angles: nothing calm before the pull, bit6 no speed/angles: implausible velocity |
 | spin_rpm | i16 | rpm, + = counter-clockwise seen from the top of the board |
 | speed_cms | u16 | cm/s |
 | hyzer_cdeg | i16 | 0.01°, + = right edge down |

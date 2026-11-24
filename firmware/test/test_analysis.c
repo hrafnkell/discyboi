@@ -61,6 +61,7 @@ struct throw_spec {
 	const char *name;
 	double speed, hyzer, nose, launch, rpm;
 	double gyro_noise_dps, acc_noise_g;
+	int approx; /* expect the calm-window fallback: wider tolerances */
 };
 
 static int run(const struct throw_spec *t)
@@ -114,13 +115,16 @@ static int run(const struct throw_spec *t)
 	double e_speed = r.speed_cms / 100.0 - t->speed, e_h = r.hyzer_cdeg / 100.0 - t->hyzer,
 	       e_n = r.nose_cdeg / 100.0 - t->nose, e_l = r.launch_cdeg / 100.0 - t->launch,
 	       e_rpm = r.spin_rpm - t->rpm;
+	double tol = t->approx ? 4 : 1;
 	int ok = (r.flags & RESULT_ANGLES_VALID) && (r.flags & RESULT_SPEED_VALID) &&
-		 fabs(e_speed) < 0.3 && fabs(e_h) < 1 && fabs(e_n) < 1 && fabs(e_l) < 1 &&
+		 !(r.flags & RESULT_REF_APPROX) == !t->approx &&
+		 fabs(e_speed) < 0.3 * tol && fabs(e_h) < tol && fabs(e_n) < tol && fabs(e_l) < tol &&
 		 fabs(e_rpm) < t->rpm * 0.02;
 	printf("%-4s %-34s speed %5.2f (%+.2f)  hyzer %6.2f (%+.2f)  nose %6.2f (%+.2f)  launch %5.2f (%+.2f)  spin %5d (%+.0f)%s  wobble %u\n",
 	       ok ? "ok" : "FAIL", t->name, r.speed_cms / 100.0, e_speed, r.hyzer_cdeg / 100.0, e_h,
 	       r.nose_cdeg / 100.0, e_n, r.launch_cdeg / 100.0, e_l, r.spin_rpm, e_rpm,
 	       (r.flags & RESULT_SPIN_CENTRIP) ? " [centrip]" : "", r.wobble_dps);
+	if (r.flags & RESULT_REF_APPROX) printf("     ^ calm-window reference\n");
 	return ok;
 }
 
@@ -132,6 +136,7 @@ int main(void)
 		{"anhyzer, nose up", 18, -15, 6, 12, 700},
 		{"big arm (high-g rim, centripetal)", 28, 5, -2, 10, 1500},
 		{"drive with sensor noise", 22, 12, -4, 8, 900, 1.0, 0.003},
+		{"never still (shaky hold)", 22, 12, -4, 8, 900, 80.0, 0.05, 1},
 	};
 	int pass = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++) pass += run(&cases[i]);

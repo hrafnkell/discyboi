@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import type { ThrowResult } from './ble/protocol';
+import { FLAG_REF_APPROX, noSpeedReason, type ThrowResult } from './ble/protocol';
 import { CAM_MODES, CameraRig, type CamMode } from './scene/cameras';
 import { AimLine } from './scene/aimLine';
 import { updateLabels } from './scene/labels';
@@ -153,13 +153,17 @@ function doThrow() {
   if (innerWidth <= 760) document.body.classList.add('hide-left'); // show the flight on phones
 }
 
+const styleName = (s: 'BH' | 'FH') => (s === 'BH' ? 'backhand' : 'forehand');
+
 function onDiscThrow(r: ThrowResult) {
   const c = convertResult(r, { hand: panel.params.hand, mount: settings.mount });
   if (!c.speedValid) {
     // Keep the release angles for the history page, but there's nothing to fly.
     const t = discThrow(r, picker.get(), { hand: panel.params.hand, mount: settings.mount });
     store.add(t.rec);
-    toast(`Throw #${r.throwId}: no valid release speed, angles recorded but not simulated`, 'err');
+    panel.set({ ...panel.params, style: c.params.style }); // spin direction is still known
+    updatePreview();
+    toast(`Throw #${r.throwId} (${styleName(c.params.style)}, ${Math.round(c.params.spinRpm)} rpm): no speed, ${noSpeedReason(r.flags)}`, 'err');
     return;
   }
   panel.set({ ...c.params, headingDeg: 0 });
@@ -169,7 +173,8 @@ function onDiscThrow(r: ThrowResult) {
   const flight = simulate(params, disc);
   play(flight, disc);
   record(disc, flight, { source: 'disc', params, raw: r, anglesEstimated: !c.anglesValid });
-  toast(`Throw #${r.throwId}: ${c.params.speed.toFixed(1)} m/s, ${Math.round(c.params.spinRpm)} rpm${c.anglesValid ? '' : ' (no still moment: angles estimated)'}`);
+  const note = !c.anglesValid ? ' (no still moment: angles estimated)' : r.flags & FLAG_REF_APPROX ? ' (disc not held still: approximate)' : '';
+  toast(`Throw #${r.throwId}: ${styleName(c.params.style)}, ${c.params.speed.toFixed(1)} m/s, ${Math.round(c.params.spinRpm)} rpm${note}`);
 }
 
 function replay(r: ThrowRecord) {
