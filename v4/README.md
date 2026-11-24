@@ -2,7 +2,7 @@
 
 Round 34 mm flight-tracker board that sits on a disc golf disc. It has a Fanstel BC15M (nRF54L15) BLE module and two LSM6DSV320X IMUs, and runs from a **CR2032 coin cell** in a clip on the back of the board.
 
-v4 is v3 with the LiPo replaced by a replaceable coin cell, because small LiPo cells are hard to get shipped. The electronics, pinout and firmware are otherwise the same. The LiPo charger stays on the board but is **not fitted** (DNP). Fit it only if you use a rechargeable LIR2032.
+v4 is v3 (now only in the git history) with the LiPo replaced by a replaceable coin cell, because small LiPo cells are hard to get shipped. The electronics, pinout and firmware are otherwise the same. The LiPo charger stays on the board but is **not fitted** (DNP). Fit it only if you use a rechargeable LIR2032.
 
 | Top | Bottom (seen from below) |
 |---|---|

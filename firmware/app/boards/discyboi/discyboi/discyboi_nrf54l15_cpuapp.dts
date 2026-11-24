@@ -1,6 +1,6 @@
 /*
- * discyboi v3: Fanstel BC15M (nRF54L15) + 2x LSM6DSV320X on SPIM00.
- * Pin assignments follow hardware v3 gen/design.py (see ../../../../../v3/README.md).
+ * discyboi v4: Fanstel BC15M (nRF54L15) + 2x LSM6DSV320X on SPIM00.
+ * Pin assignments follow hardware v4 gen/design.py (see ../../../../../v4/README.md).
  */
 /dts-v1/;
 
@@ -9,7 +9,7 @@
 #include "discyboi_nrf54l15_cpuapp-pinctrl.dtsi"
 
 / {
-	model = "discyboi v3";
+	model = "discyboi v4";
 	compatible = "discyboi,discyboi-nrf54l15-cpuapp";
 
 	chosen {

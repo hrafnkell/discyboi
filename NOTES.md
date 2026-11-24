@@ -4,7 +4,7 @@ Let's try to build this schematic +pcb in kicad. Using LCSC parts (will order us
 freerouting is in ~/Downloads/freerouting*.AppImage
 
 Holyiot nrf54l15 26001A module (chip antenna) 10x12.5mm
-I put some pictures in the holyiot folder.
+I put some pictures in the holyiot folder (removed since; see the git history).
 
 
 Core 

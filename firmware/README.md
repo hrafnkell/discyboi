@@ -1,6 +1,6 @@
 # discyboi firmware (preliminary)
 
-Zephyr firmware for the [v3 board](../v3/README.md). It detects throws with the two LSM6DSV320X IMUs, works out release speed, angles and spin, and reports them over BLE. It can also send the raw 3-second capture of each throw so the algorithms can be refined offline.
+Zephyr firmware for the [v4 board](../v4/README.md). It detects throws with the two LSM6DSV320X IMUs, works out release speed, angles and spin, and reports them over BLE. It can also send the raw 3-second capture of each throw so the algorithms can be refined offline.
 
 **Status: runs on the v4 board.** It now boots through MCUboot and takes updates over Bluetooth (not yet tried on hardware). First boot on 2026-11-23: both IMUs answer (3 blinks) and motion moves the state machine from IDLE to ARMED. Bluetooth and real throws are still to be checked. The analysis maths is tested on the host with synthetic throws (`test/`), and the thresholds will need tuning against real throws.
 
@@ -24,7 +24,7 @@ The build makes MCUboot and the app (sysbuild) and signs the app:
 **Signing key:** `keys/discyboi-ec-p256.pem` is created on the first build and is not in git. **Back it up.** A board running MCUboot only accepts updates signed with that key, so without it the board needs another wired flash.
 
 - **Zephyr:** upstream, not the nRF Connect SDK. It uses the open-source Bluetooth controller (`BT_LL_SW_SPLIT`).
-- **Board:** `discyboi/nrf54l15/cpuapp`, defined in `app/boards/discyboi/`. v3 and v4 boards share the pinout.
+- **Board:** `discyboi/nrf54l15/cpuapp`, defined in `app/boards/discyboi/`.
 - **Battery:** `CONFIG_DISCY_BATTERY_AUTO=y` (default) picks the battery-level curve itself. It uses the coin-cell curve until VBAT has been seen above 3.45 V, then switches to the LiPo curve for the rest of the session (a CR2032 never reads that high). Force one with `CONFIG_DISCY_BATTERY_COIN=y` or `CONFIG_DISCY_BATTERY_LIPO=y` in `prj.conf`.
 
 ## Flashing and logs
@@ -174,7 +174,7 @@ Request a large MTU (247) first. That gives 8 samples per packet, so a full capt
 ```
 build.sh                  Docker build
 app/west.yml              manifest: Zephyr v4.0 + cmsis, hal_nordic, segger, tinycrypt
-app/boards/discyboi/      board definition (pins from v3/gen/design.py)
+app/boards/discyboi/      board definition (pins from v4/gen/design.py)
 app/dts/bindings/         devicetree binding for the IMUs
 app/src/imu.c             LSM6DSV320X register driver (SPI)
 app/src/capture.c         sampling thread + throw state machine
