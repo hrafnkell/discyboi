@@ -39,12 +39,21 @@ The STLs are for a **1.0 mm** board (`pcb_t = 1.0`). For a different thickness, 
 
 1. Clean the underside of the flight plate with isopropyl alcohol.
 2. Stick the base on with a disc of 3M VHB tape, 0.6–1.1 mm thick. The flight plate's curvature over 43 mm is under 0.1 mm, so a flat base is fine.
-3. Centre it carefully, because the centre IMU must sit on the spin axis. `stl/jig.stl` is a three-armed centring spider:
-   1. Measure the inside diameter of your disc's rim, at the flight plate.
-   2. Set `disc_inner_d` to it and re-export the jig.
-   3. Drop the jig into the upturned disc, push the base through its centre pocket onto the tape, and lift the jig out.
+3. Centre it carefully, because the centre IMU must sit on the spin axis. There are two ways, both using a three-armed jig whose centre pocket holds the base.
 
-The default `disc_inner_d` is 165 mm, so measure your disc. Driver and putter rims differ.
+**On the injection mark (recommended).** Discs are injected through the centre of the underside, which leaves a small dimple or nub exactly on the axis. This works for any disc without measuring.
+1. Print `stl/jig_dimple.stl` and `stl/sight.stl`. The sight has the base's footprint, lobes included, with a conical hole down the middle and tick marks on its top edge.
+2. Drop the jig into the upturned disc and put the sight in its pocket.
+3. Slide the jig until the injection mark sits in the middle of the sight's hole, then tape the three arm pads down with masking tape.
+4. Lift the sight out by its grip ring, put the VHB on the base, and press the base into the pocket. It sits exactly where the sight was.
+5. Peel the tape and lift the jig off.
+
+If the mark is a raised nub rather than a dimple, the 1.6 mm hole clears it. The VHB under the real base absorbs a nub up to about half the tape thickness, so trim a taller one flush first.
+
+**On the rim.** `stl/jig.stl` has arms that reach the rim and centre themselves:
+1. Measure the inside diameter of your disc's rim, at the flight plate.
+2. Set `disc_inner_d` to it and re-export the jig. The default is 165 mm; driver and putter rims differ.
+3. Drop the jig into the upturned disc, push the base through its centre pocket onto the tape, and lift the jig out.
 
 ## Re-generating
 
@@ -54,10 +63,13 @@ openscad -o stl/lid_coin.stl -D 'part="lid"'  discyboi_case.scad
 openscad -o stl/base_lipo.stl -D 'part="base"' -D 'battery="lipo"' -D 'charge_notch=true' discyboi_case.scad
 openscad -o stl/lid_lipo.stl  -D 'part="lid"'  -D 'battery="lipo"' discyboi_case.scad
 openscad -o stl/jig.stl      -D 'part="jig"' -D 'disc_inner_d=165' discyboi_case.scad
+openscad -o stl/jig_dimple.stl -D 'part="jig"' -D 'jig_mode="dimple"' discyboi_case.scad
+openscad -o stl/sight.stl    -D 'part="sight"' discyboi_case.scad
 ```
 
 Or open `discyboi_case.scad` in OpenSCAD and use the Customizer:
-- **`part`:** `assembly`, `exploded`, `base`, `lid`, `jig` or `print`.
+- **`part`:** `assembly`, `exploded`, `base`, `lid`, `jig`, `sight` or `print`.
+- **`jig_mode`:** `rim` or `dimple`.
 - **`battery`:** `coin` or `lipo`.
 - **Dimensions:** `pcb_t`, `clr`, `press`, `wall` and `floor_t`.
 

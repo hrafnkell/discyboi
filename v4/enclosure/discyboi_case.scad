@@ -7,12 +7,12 @@
 // Frame: z = 0 is the face that sticks to the disc. x/y are the board as seen from the lid side
 // (i.e. the KiCad top view mirrored left-right): the module and its antenna point to +y.
 //
-// Parts (set `part`): "assembly", "exploded", "base", "lid", "jig", "print" (base + lid laid out).
+// Parts (set `part`): "assembly", "exploded", "base", "lid", "jig", "sight", "print" (base + lid laid out).
 // Hardware: 3 x M2 countersunk screws, 8 mm (self-tapping into the printed posts, or machine
 // screws into 2.0 mm holes tapped by the screw itself). Print in PETG or TPU, not PLA.
 
 /* [What to render] */
-part = "exploded";            // [assembly, exploded, base, lid, jig, print]
+part = "exploded";            // [assembly, exploded, base, lid, jig, sight, print]
 battery = "coin";             // [coin, lipo]
 
 /* [Board] */
@@ -36,8 +36,14 @@ lip = 0.8;                    // chamfer on the lid's outer edge
 charge_notch = false;         // wire slot for charging a LiPo build (CHG pads face the disc)
 
 /* [Centring jig] */
+// "rim": arms reach the rim and centre the jig on it (set disc_inner_d).
+// "dimple": shorter arms that fit any disc; centre the "sight" insert on the injection mark
+// under the flight plate, tape the arms down, then swap the sight for the base.
+jig_mode = "rim";             // [rim, dimple]
 disc_inner_d = 165;           // inside diameter of the disc's rim, measured at the flight plate
+jig_arm = 55;                 // dimple mode: arm length from the centre (fits any rim over ~120 mm)
 jig_t = 2.0;
+sight_hole = 1.6;             // sight insert: hole diameter at the disc face (the mark shows in it)
 
 $fn = 96;
 
@@ -148,18 +154,38 @@ module lid() {
 }
 
 // ------------------------------------------------------------------ centring jig
-// Drops into the underside of the disc against the rim; the base sits in its centre pocket.
+// Drops into the underside of the disc; the base (or the sight) sits in its centre pocket.
+// Rim mode: the arm ends stop against the rim. Dimple mode: the arms end in flat pads for tape.
 module jig() {
-    rr = disc_inner_d / 2 - 0.5;
+    rim = jig_mode == "rim";
+    rr = rim ? disc_inner_d / 2 - 0.5 : jig_arm;
     difference() {
         union() {
             linear_extrude(jig_t + 2) outline2d(2.0);
             for (a = [0, 120, 240]) rotate(a) {
                 translate([0, -4, 0]) cube([rr, 8, jig_t]);
-                translate([rr - 3, -6, 0]) cube([3, 12, jig_t + 3]);
+                if (rim) translate([rr - 3, -6, 0]) cube([3, 12, jig_t + 3]);
+                else translate([rr - 14, -8, 0]) cube([14, 16, jig_t]);
             }
         }
         translate([0, 0, -1]) linear_extrude(jig_t + 4) outline2d(0.3);
+    }
+}
+
+// Sight insert: the base's footprint (same lobes, so it sits in the jig pocket exactly as the
+// base will) with a conical hole down the spin axis. Move the jig until the disc's injection
+// mark is centred in the hole, tape the jig down, lift the sight out and press the base in.
+// Prints flat face down; the raised grip ring makes it easy to pull out of the pocket.
+module sight() {
+    h = jig_t + 2 + 3;
+    difference() {
+        union() {
+            linear_extrude(jig_t + 2) outline2d();
+            cylinder(r = 6, h = h);
+        }
+        translate([0, 0, -0.01]) cylinder(d1 = sight_hole, d2 = 9, h = h + 0.02);
+        // ticks on the top edge (along x and y) to judge the mark against
+        for (a = [0, 90]) rotate(a) translate([-7, -0.3, h - 0.6]) cube([14, 0.6, 1]);
     }
 }
 
@@ -179,6 +205,7 @@ module board_mock() {
 if (part == "base") base();
 else if (part == "lid") translate([0, 0, H]) rotate([180, 0, 0]) lid();
 else if (part == "jig") jig();
+else if (part == "sight") sight();
 else if (part == "print") {
     base();
     translate([2 * (post_r + lobe_r) + 4, 0, H]) rotate([180, 0, 0]) lid();
