@@ -55,15 +55,16 @@ export class BleDisc implements DiscDevice {
     const svc = await server.getPrimaryService(SERVICE_UUID);
 
     const thr = await svc.getCharacteristic(THROW_UUID);
-    thr.addEventListener('characteristicvaluechanged', () => this.handleThrow(thr.value!));
-    await thr.startNotifications();
-    // The latest throw is readable; remember its id so it is not reported as new.
+    // The latest throw is readable; remember its id so it is not reported as new. Read before
+    // listening: a read fires characteristicvaluechanged too, and would replay the old throw.
     try {
       const v = await thr.readValue();
       if (v.byteLength >= 26) this.lastThrowId = parseThrowResult(v).throwId;
     } catch {
       /* nothing thrown yet */
     }
+    thr.addEventListener('characteristicvaluechanged', () => this.handleThrow(thr.value!));
+    await thr.startNotifications();
 
     const st = await svc.getCharacteristic(STATUS_UUID);
     st.addEventListener('characteristicvaluechanged', () => this.onStatus?.(parseStatus(st.value!)));
@@ -97,7 +98,7 @@ export class BleDisc implements DiscDevice {
 
   private handleThrow(v: DataView) {
     const r = parseThrowResult(v);
-    if (r.throwId === this.lastThrowId) return;
+    if (r.throwId === 0 || r.throwId === this.lastThrowId) return; // 0: nothing thrown since boot
     this.lastThrowId = r.throwId;
     this.onThrow?.(r);
   }

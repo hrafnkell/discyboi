@@ -27,9 +27,12 @@ interface UiState {
   follow: boolean;
   speak: boolean;
   discId: string;
+  source: 'all' | 'disc' | 'lab';
+  style: 'all' | 'BH' | 'FH';
+  sort: { key: string; dir: 1 | -1 };
 }
 const UI_KEY = 'discyboi.historyui.v1';
-const ui: UiState = { range: 'session', sessionStart: Date.now() - 3 * 3600e3, targets: {}, trendKey: 'nose', follow: true, speak: false, discId: 'drv-stable', ...read<Partial<UiState>>(UI_KEY, {}) };
+const ui: UiState = { range: 'session', sessionStart: Date.now() - 3 * 3600e3, targets: {}, trendKey: 'nose', follow: true, speak: false, discId: 'drv-stable', source: 'all', style: 'all', sort: { key: 'time', dir: -1 }, ...read<Partial<UiState>>(UI_KEY, {}) };
 const saveUi = () => write(UI_KEY, ui);
 
 const settings = loadSettings();
@@ -66,8 +69,9 @@ function inRange(r: ThrowRecord): boolean {
       return true;
   }
 }
-/** Throws in range, oldest first (numbered 1..n in the table and the trend). */
-const ranged = () => store.all().filter(inRange).slice().reverse();
+const inFilter = (r: ThrowRecord) => (ui.source === 'all' || (r.source === 'disc') === (ui.source === 'disc')) && (ui.style === 'all' || r.params.style === ui.style);
+/** Throws in range that pass the filters, oldest first (numbered 1..n in the table and the trend). */
+const ranged = () => store.all().filter((r) => inRange(r) && inFilter(r)).slice().reverse();
 
 const timeStr = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const dateStr = (ts: number) => new Date(ts).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
@@ -187,9 +191,27 @@ const newSessionBtn = h('button.ghostbtn', { type: 'button', title: 'Only count 
   ui.range = 'session';
   rangeSeg.set('session');
   saveUi();
+  store.setPrefs({ sessionStart: ui.sessionStart });
   renderAll();
   toast('New session started');
 } }, 'New session');
+// Signed in, the session start is shared: whichever device pressed New session last sets it everywhere.
+store.onPrefs = (p) => {
+  if (p.sessionStart === undefined || p.sessionStart === ui.sessionStart) return;
+  ui.sessionStart = p.sessionStart;
+  saveUi();
+  renderAll();
+};
+const sourceSeg = segmented<UiState['source']>(
+  [{ id: 'all', label: 'All' }, { id: 'disc', label: 'Disc', title: 'Only throws measured by the disc' }, { id: 'lab', label: 'Lab', title: 'Only throws entered in the flight lab' }],
+  ui.source,
+  (v) => ((ui.source = v), saveUi(), renderAll()),
+);
+const styleSeg = segmented<UiState['style']>(
+  [{ id: 'all', label: 'All' }, { id: 'BH', label: 'Backhand' }, { id: 'FH', label: 'Forehand' }],
+  ui.style,
+  (v) => ((ui.style = v), saveUi(), renderAll()),
+);
 const rangeInfo = h('span.meta');
 const statsCard = h('section.card.statscard');
 
@@ -290,8 +312,28 @@ fileIn.addEventListener('change', async () => {
 
 function renderTable() {
   const list = ranged();
+  const { key: sk, dir } = ui.sort;
+  const sortVal = (r: ThrowRecord): number | string | undefined => (sk === 'time' ? r.ts : sk === 'style' ? r.params.style : sk === 'source' ? r.source : metric(sk)?.get(r));
+  // Throws without the value go last whichever way the column is sorted.
+  const order = (a: ThrowRecord, b: ThrowRecord) => {
+    const x = sortVal(a), y = sortVal(b);
+    if (x === undefined || y === undefined) return x === y ? b.ts - a.ts : x === undefined ? 1 : -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * dir || b.ts - a.ts;
+  };
+  const sortTh = (key: string, numeric: boolean, title: string, ...kids: (Node | string)[]) => {
+    const on = sk === key;
+    return h(numeric ? 'th.num' : 'th', { 'aria-sort': on ? (dir > 0 ? 'ascending' : 'descending') : undefined },
+      h('button.thsort', { type: 'button', class: on ? 'thsort on' : 'thsort', title: `Sort by ${title.toLowerCase()}`, onclick: () => {
+        ui.sort = { key, dir: on ? (-dir as 1 | -1) : key === 'time' ? -1 : 1 };
+        saveUi();
+        renderTable();
+      } }, ...kids, h('span.arrow', { 'aria-hidden': 'true' }, on ? (dir > 0 ? '▲' : '▼') : '')));
+  };
+  const num = new Map(list.map((r, i) => [r.id, i + 1]));
   const body = list
-    .map((r, i) => {
+    .slice()
+    .sort(order)
+    .map((r) => {
       const cb = h('input', { type: 'checkbox', checked: compare.includes(r.id), 'aria-label': 'Compare', title: compare.length >= 6 && !compare.includes(r.id) ? 'Compare holds up to 6 throws' : 'Compare' });
       cb.addEventListener('change', () => toggleCompare(r.id, cb.checked));
       const slot = compare.indexOf(r.id);
@@ -300,9 +342,10 @@ function renderTable() {
         select(r.id);
       } },
         h('td.cmp', {}, cb, slot >= 0 ? h('span.slot', { style: `background:${SERIES[slot]}` }, LETTERS[slot]) : null),
-        h('td.n', {}, String(i + 1)),
+        h('td.n', {}, String(num.get(r.id))),
         h('td.time', {}, timeStr(r.ts)),
         h('td', {}, h('span.swatch', { style: `background:${r.disc.color}` }), ' ', r.source === 'disc' ? h('span.tag', {}, r.anglesEstimated ? 'disc*' : 'disc') : h('span.tag.man', { title: 'Entered in the flight lab' }, 'lab')),
+        h('td', {}, h(`span.tag.${r.params.style === 'FH' ? 'fh' : 'bh'}`, { title: `${r.params.hand === 'R' ? 'Right' : 'Left'}-hand ${r.params.style === 'FH' ? 'forehand' : 'backhand'}` }, r.params.style)),
         ...COLS.map((k) => {
           const m = metric(k);
           const v = m.get(r);
@@ -311,8 +354,7 @@ function renderTable() {
         }),
         h('td.note', { title: r.note ?? '' }, r.note ?? ''),
       );
-    })
-    .reverse();
+    });
   tableCard.replaceChildren(
     h('div.cardhead', {},
       h('h2', {}, 'Throws'),
@@ -323,13 +365,13 @@ function renderTable() {
     fileIn,
     list.length
       ? h('div.scrollx', {}, h('table.throws-t', {},
-          h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '#'), h('th', {}, 'Time'), h('th', {}, ''), ...COLS.map((k) => {
+          h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '#'), sortTh('time', false, 'Time', 'Time'), sortTh('source', false, 'Source', 'Src'), sortTh('style', false, 'Backhand or forehand', 'Style'), ...COLS.map((k) => {
             const m = metric(k);
-            return h('th.num', { title: m.label }, m.short, h('small', {}, m.unit === 'm' ? units() : m.unit));
+            return sortTh(k, true, m.label, m.short, h('small', {}, m.unit === 'm' ? units() : m.unit));
           }), h('th', {}, 'Note'))),
           h('tbody', {}, ...body),
         ))
-      : h('p.muted', {}, 'No throws in this range.'),
+      : h('p.muted', {}, ui.source !== 'all' || ui.style !== 'all' ? 'No throws match the filters in this range.' : 'No throws in this range.'),
   );
 }
 
@@ -523,7 +565,7 @@ function renderAll() {
 }
 
 wrap.append(
-  h('div.col.colmain', {}, recCard, latestCard, h('div.rangebar', {}, rangeSeg.el, newSessionBtn), trendCard, tableCard, statsCard),
+  h('div.col.colmain', {}, recCard, latestCard, h('div.rangebar', {}, rangeSeg.el, newSessionBtn, h('span.spacer'), sourceSeg.el, styleSeg.el), trendCard, tableCard, statsCard),
   h('div.col.colside', {}, sideCard),
 );
 renderAll();

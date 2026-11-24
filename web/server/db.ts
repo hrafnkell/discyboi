@@ -43,6 +43,11 @@ export class Db {
         PRIMARY KEY (user_id, id)
       );
       CREATE INDEX IF NOT EXISTS throws_user_ts ON throws(user_id, ts DESC);
+      CREATE TABLE IF NOT EXISTS prefs (      -- small per-account settings shared by all devices
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        data TEXT NOT NULL,
+        updated INTEGER NOT NULL
+      );
     `);
   }
 
@@ -133,6 +138,16 @@ export class Db {
 
   clearThrows(userId: number) {
     this.sql.query('DELETE FROM throws WHERE user_id = ?').run(userId);
+  }
+
+  // ------------------------------------------------------------- prefs
+  /** The account's shared settings as stored JSON ('{}' if none). */
+  getPrefs(userId: number): string {
+    return this.sql.query<{ data: string }, [number]>('SELECT data FROM prefs WHERE user_id = ?').get(userId)?.data ?? '{}';
+  }
+
+  setPrefs(userId: number, data: string) {
+    this.sql.query('INSERT INTO prefs (user_id, data, updated) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated = excluded.updated').run(userId, data, Date.now());
   }
 }
 

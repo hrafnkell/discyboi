@@ -51,6 +51,14 @@ export const api = {
   put: (throws: ThrowRecord[]) => call<{ added: number; updated: number; rejected: number; dropped: number; count: number }>('POST', '/api/throws', { throws }),
   del: (id: string) => call<{ ok: true }>('DELETE', `/api/throws/${encodeURIComponent(id)}`),
   clear: () => call<{ ok: true }>('DELETE', '/api/throws'),
+  prefs: () => call<{ prefs: Prefs }>('GET', '/api/prefs'),
+  setPrefs: (p: Prefs) => call<{ ok: true }>('PUT', '/api/prefs', p),
 };
 
-export type ServerEvent = { op: 'put'; throws: ThrowRecord[] } | { op: 'del'; ids: string[] } | { op: 'clear' };
+/** Settings shared by every device signed in to the account. */
+export interface Prefs {
+  /** When the current practice session began (ms since epoch). */
+  sessionStart?: number;
+}
+
+export type ServerEvent = { op: 'put'; throws: ThrowRecord[] } | { op: 'del'; ids: string[] } | { op: 'clear' } | { op: 'prefs'; prefs: Prefs };

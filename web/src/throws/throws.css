@@ -65,6 +65,14 @@ td.note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: va
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; }
 .tag { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: rgba(82, 211, 154, 0.18); color: var(--good); }
 .tag.man { background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.tag.bh { background: rgba(88, 166, 255, 0.2); color: #8fc4ff; }
+.tag.fh { background: rgba(255, 159, 67, 0.22); color: #ffb86b; }
+.thsort { all: unset; cursor: pointer; display: inline-block; }
+.thsort:hover, .thsort.on { color: var(--text); }
+.thsort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.thsort .arrow { display: inline-block; width: 1em; font-size: 9px; text-align: center; }
+th.num .thsort { text-align: right; }
+.rangebar .spacer { flex: 1; }
 .slot { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 5px; font-size: 10px; font-weight: 700; color: #fff; margin-left: 4px; vertical-align: middle; }
 
 .stats-t tr.cur th { color: var(--accent); }

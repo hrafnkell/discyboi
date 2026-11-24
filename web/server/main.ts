@@ -260,6 +260,20 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
     }
   }
 
+  if (path === '/api/prefs') {
+    if (method === 'GET') return new Response(`{"prefs":${db.getPrefs(user.id)}}`, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...SEC_HEADERS } });
+    if (method === 'PUT') {
+      // Only known fields are kept. sessionStart: when the current practice session began (ms).
+      const b = await body<{ sessionStart?: unknown }>(req);
+      const s = b?.sessionStart;
+      if (typeof s !== 'number' || !Number.isFinite(s) || s < 0) return err(400, 'Send { sessionStart: <ms> }');
+      const data = JSON.stringify({ sessionStart: Math.round(s) });
+      db.setPrefs(user.id, data);
+      publishRaw(user.id, `{"op":"prefs","prefs":${data}}`);
+      return json({ ok: true });
+    }
+  }
+
   const m = /^\/api\/throws\/([^/]+)$/.exec(path);
   if (m && method === 'DELETE') {
     const id = decodeURIComponent(m[1]);

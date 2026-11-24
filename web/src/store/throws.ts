@@ -5,7 +5,7 @@
 import type { ThrowResult } from '../ble/protocol';
 import type { Mount } from '../sim/convert';
 import type { DiscSpec, FlightResult, Hand, ThrowParams } from '../sim/types';
-import { api, ApiError, type ServerEvent, type User } from './account';
+import { api, ApiError, type Prefs, type ServerEvent, type User } from './account';
 
 export interface ThrowRecord {
   id: string;
@@ -75,6 +75,8 @@ export class ThrowStore {
   onSync?: (s: SyncState) => void;
   /** The server stopped accepting this session (expired or signed out elsewhere). */
   onAuthLost?: () => void;
+  /** The account's shared settings arrived (after signing in, or changed on another device). */
+  onPrefs?: (p: Prefs) => void;
 
   constructor() {
     this.items = this.loadLocal();
@@ -137,6 +139,7 @@ export class ThrowStore {
       if (this.user !== user) return;
       this.items = throws;
       for (const op of this.pending()) this.applyLocal(op);
+      api.prefs().then(({ prefs }) => this.user === user && this.onPrefs?.(prefs), () => undefined);
       this.setSync(this.pending().length ? 'pending' : 'synced');
     } catch (e) {
       if (this.user !== user) return;
@@ -175,6 +178,7 @@ export class ThrowStore {
       } catch {
         return;
       }
+      if (ev.op === 'prefs') return this.onPrefs?.(ev.prefs);
       if (ev.op === 'put') for (const r of ev.throws) this.applyLocal({ t: 'put', rec: r });
       else if (ev.op === 'del') for (const id of ev.ids) this.applyLocal({ t: 'del', id });
       else this.applyLocal({ t: 'clear' });
@@ -279,6 +283,11 @@ export class ThrowStore {
     let added = 0;
     for (let i = 0; i < local.length; i += 500) added += (await api.put(local.slice(i, i + 500))).added;
     return added;
+  }
+
+  /** Shares settings with the account's other devices. Signed out, there is nobody to tell. */
+  setPrefs(p: Prefs) {
+    if (this.user) api.setPrefs(p).catch(() => undefined); // best effort: the local copy still applies here
   }
 
   // ------------------------------------------------------------ queries
