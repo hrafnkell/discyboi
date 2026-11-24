@@ -2,6 +2,7 @@ import { bleSupport, BleDisc, type DiscDevice } from '../ble/device';
 import { FakeDisc } from '../ble/fake';
 import type { DeviceStatus, ThrowResult } from '../ble/protocol';
 import { h } from './dom';
+import { keepAwake } from './wakeLock';
 
 /** Connect button + status chip in the top bar. */
 export class DevicePanel {
@@ -69,6 +70,7 @@ export class DevicePanel {
 
   private render() {
     const on = !!this.dev;
+    keepAwake(on);
     this.btn.textContent = on ? 'Disconnect' : this.fake ? 'Connect fake disc' : 'Connect disc';
     this.idBtn.hidden = !on || this.fake;
     if (this.fakeBtn) this.fakeBtn.hidden = !on;

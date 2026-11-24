@@ -43,7 +43,7 @@ jig_mode = "rim";             // [rim, dimple]
 disc_inner_d = 165;           // inside diameter of the disc's rim, measured at the flight plate
 jig_arm = 55;                 // dimple mode: arm length from the centre (fits any rim over ~120 mm)
 jig_t = 2.0;
-sight_hole = 1.6;             // sight insert: hole diameter at the disc face (the mark shows in it)
+sight_hole = 5.0;             // sight insert: hole diameter at the disc face (the mark shows in it)
 
 $fn = 96;
 

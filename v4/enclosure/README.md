@@ -48,7 +48,7 @@ The STLs are for a **1.0 mm** board (`pcb_t = 1.0`). For a different thickness, 
 4. Lift the sight out by its grip ring, put the VHB on the base, and press the base into the pocket. It sits exactly where the sight was.
 5. Peel the tape and lift the jig off.
 
-If the mark is a raised nub rather than a dimple, the 1.6 mm hole clears it. The VHB under the real base absorbs a nub up to about half the tape thickness, so trim a taller one flush first.
+If the mark is a raised nub rather than a dimple, the 5 mm hole clears it. The VHB under the real base absorbs a nub up to about half the tape thickness, so trim a taller one flush first.
 
 **On the rim.** `stl/jig.stl` has arms that reach the rim and centre themselves:
 1. Measure the inside diameter of your disc's rim, at the flight plate.
