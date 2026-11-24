@@ -21,12 +21,11 @@ Earlier revisions (v1: bare nRF54L15 + ADXL375, v2: Holyiot module, v3: the v4 d
 
 ```
 NOTES.md               original design notes: part choices, power and mechanical considerations
-DS_lsm6dsv320x.pdf     IMU datasheet
+datasheets/            LSM6DSV320X IMU datasheet, TE/Linx coin-cell clip drawings (003 = CR2032, used on v4)
 v4/                    KiCad project for the current board
 v4/gen/                Python generators for v4's schematic, footprints and PCB (source of truth)
 v4/jlcpcb/             fabrication outputs (gerbers, BOM, CPL)
 v4/enclosure/          OpenSCAD case (base + screw-on battery lid), STLs, centring jig
-ENG_CD_C_BAT_HLD_*.pdf TE/Linx coin-cell clip drawings (003 = CR2032, used on v4)
 firmware/              Zephyr firmware for the v4 board
 web/                   three.js flight lab: flight simulator, Web Bluetooth client, throw history
 ```
