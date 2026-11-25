@@ -384,6 +384,7 @@ function renderTable() {
     h('div.cardhead', {},
       h('h2', {}, 'Throws'),
       h('span.meta', {}, 'Tick up to 6 to compare'),
+      compare.length ? bulkDelButton() : null,
       h('button.ghostbtn', { type: 'button', onclick: () => fileIn.click() }, 'Import'),
       h('button.ghostbtn', { type: 'button', onclick: () => exportJson() }, 'Export'),
     ),
@@ -420,6 +421,26 @@ function delButton(id: string): HTMLElement {
     armedDelete = undefined;
     removeThrow(id);
   } }, armed ? 'Delete?' : '×');
+}
+
+/** Deletes every ticked throw, after a second press within a few seconds. */
+function bulkDelButton(): HTMLElement {
+  const n = compare.length, armed = armedDelete === '*';
+  return h('button.ghostbtn', { type: 'button', class: armed ? 'ghostbtn bulkdel armed' : 'ghostbtn bulkdel', title: armed ? 'Press again to delete the ticked throws' : 'Delete the ticked throws', onclick: () => {
+    clearTimeout(armedTimer);
+    if (!armed) {
+      armedDelete = '*';
+      armedTimer = setTimeout(() => {
+        armedDelete = undefined;
+        renderTable();
+      }, 3000);
+      renderTable();
+      return;
+    }
+    armedDelete = undefined;
+    for (const id of compare.slice()) removeThrow(id);
+    toast(`Deleted ${n} throw${n === 1 ? '' : 's'}`);
+  } }, armed ? `Really delete ${n}?` : `Delete ticked (${n})`);
 }
 
 /** Deletes a throw everywhere (with its raw recording, on the server). The store's change event redraws. */

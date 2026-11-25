@@ -65,6 +65,8 @@ td.out { color: #ffcf70; }
 .rowdel { border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; opacity: 0.45; }
 .throws-t tr:hover .rowdel, .rowdel:focus-visible { opacity: 1; }
 .rowdel:hover { color: var(--err); }
+.bulkdel:hover { color: var(--err); border-color: var(--err); }
+.bulkdel.armed { color: #fff; background: var(--err); border-color: var(--err); font-weight: 700; }
 .rowdel.armed { opacity: 1; color: #fff; background: var(--err); font-size: 11px; font-weight: 700; padding: 3px 7px; }
 td.note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; }

@@ -100,6 +100,24 @@ section { padding: 72px 0 8px; }
 .note { margin-top: 36px; padding: 18px 20px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--accent); color: #c5d0db; font-size: 0.98rem; }
 .note strong { color: var(--text); }
 
+.sub { font-size: 1.35rem; margin-top: 56px; }
+.scrollx { overflow-x: auto; margin-top: 22px; }
+.cost { border-collapse: collapse; width: 100%; max-width: 760px; font-size: 0.98rem; }
+.cost th, .cost td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+.cost thead th { color: var(--muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.cost td { color: #c5d0db; }
+.cost .qty, .cost .usd { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cost tfoot th, .cost tfoot td { color: var(--text); font-weight: 750; border-bottom: 0; border-top: 2px solid var(--line); }
+.cost tfoot .usd { color: var(--accent); }
+.interest {
+  margin-top: 40px; padding: 26px 28px; border-radius: var(--radius); border: 1px solid rgba(255, 183, 3, 0.35);
+  background: linear-gradient(135deg, rgba(255, 183, 3, 0.1), rgba(251, 133, 0, 0.04));
+}
+.interest h3 { font-size: 1.3rem; margin-bottom: 10px; }
+.interest p { color: #c5d0db; max-width: 62ch; margin-bottom: 14px; }
+.interest p:last-of-type { margin-bottom: 22px; }
+.interest strong { color: var(--text); }
+
 footer {
   max-width: 1120px; margin: 72px auto 0; padding: 26px 20px 40px; border-top: 1px solid var(--line);
   display: flex; flex-wrap: wrap; gap: 22px; align-items: center; color: var(--muted); font-size: 0.95rem;
