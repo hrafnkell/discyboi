@@ -15,8 +15,9 @@ import { discThrow } from '../store/record';
 import { loadSettings, read, saveSettings, ThrowStore, write, type ThrowRecord } from '../store/throws';
 import { AccountPanel } from '../ui/accountPanel';
 import { DevicePanel } from '../ui/devicePanel';
-import { fmtDist, h, segmented } from '../ui/dom';
-import { fmt, metric, METRICS, onTarget, stats, type Metric, type Targets } from './metrics';
+import { h, segmented } from '../ui/dom';
+import { distScale, fmtDist, UNIT_OPTIONS } from '../units';
+import { display, fmt, metric, METRICS, onTarget, shown, stats, type Metric, type Targets } from './metrics';
 import { pathPlot, SERIES, trendChart } from './plots';
 
 type Range = 'session' | 'today' | 'week' | 'all';
@@ -77,6 +78,12 @@ const ranged = () => store.all().filter((r) => inRange(r) && inFilter(r)).slice(
 
 const timeStr = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const dateStr = (ts: number) => new Date(ts).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+
+/** The unit shown after a big number: '°' hugs the number, the rest get a space. */
+function unitSuffix(m: Metric) {
+  const u = display(m, units()).unit;
+  return u === '°' ? '°' : ` ${u}`;
+}
 
 function targetBadge(key: string, v: number | undefined): HTMLElement | null {
   const st = onTarget(ui.targets, key, v);
@@ -140,7 +147,12 @@ const discSel = h('select', { 'aria-label': 'Disc used for new throws' }, ...DIS
 discSel.addEventListener('change', () => ((ui.discId = discSel.value), saveUi()));
 const handSeg = segmented([{ id: 'R', label: 'Right' }, { id: 'L', label: 'Left' }], settings.hand, (v) => ((settings.hand = v), saveSettings(settings)));
 const mountSeg = segmented([{ id: 'faceUp', label: 'Face up' }, { id: 'faceDown', label: 'Face down' }], settings.mount, (v) => ((settings.mount = v), saveSettings(settings)));
-const unitSeg = segmented([{ id: 'm', label: 'm' }, { id: 'ft', label: 'ft' }], settings.units, (v) => ((settings.units = v), saveSettings(settings), renderAll()));
+const unitSeg = segmented(UNIT_OPTIONS, settings.units, (v) => {
+  settings.units = v;
+  saveSettings(settings);
+  store.setPrefs({ units: v });
+  renderAll();
+});
 const toggle = (label: string, get: () => boolean, set: (v: boolean) => void, title: string) => {
   const cb = h('input', { type: 'checkbox', checked: get() });
   cb.addEventListener('change', () => set(cb.checked));
@@ -182,8 +194,8 @@ function renderLatest() {
     const ot = onTarget(ui.targets, k, v);
     return h('div.tile', { class: ot ? `tile ${ot}` : 'tile' },
       h('span.tl', {}, m.label),
-      h('b', {}, fmt(m, v, units(), false), v !== undefined && m.unit !== 'm' ? h('small', {}, m.unit === '°' ? '°' : ` ${m.unit}`) : v !== undefined && m.unit === 'm' ? h('small', {}, units() === 'ft' ? ' ft' : ' m') : null),
-      h('span.ts', {}, v !== undefined && m.sub ? m.sub(v) : ' '),
+      h('b', {}, fmt(m, v, units(), false), v !== undefined ? h('small', {}, unitSuffix(m)) : null),
+      h('span.ts', {}, v !== undefined && m.sub ? m.sub(v, units()) : ' '),
       h('span.delta', {}, d === undefined ? ' ' : `${d >= 0 ? '+' : '−'}${fmt(m, Math.abs(d), units())} vs avg`),
       targetBadge(k, v),
     );
@@ -220,11 +232,21 @@ const newSessionBtn = h('button.ghostbtn', { type: 'button', title: 'Only count 
   toast('New session started');
 } }, 'New session');
 // Signed in, the session start is shared: whichever device pressed New session last sets it everywhere.
+// Units are an account setting too, so every device shows the same system.
 store.onPrefs = (p) => {
-  if (p.sessionStart === undefined || p.sessionStart === ui.sessionStart) return;
-  ui.sessionStart = p.sessionStart;
-  saveUi();
-  renderAll();
+  let changed = false;
+  if (p.sessionStart !== undefined && p.sessionStart !== ui.sessionStart) {
+    ui.sessionStart = p.sessionStart;
+    saveUi();
+    changed = true;
+  }
+  if (p.units && p.units !== settings.units) {
+    settings.units = p.units;
+    saveSettings(settings);
+    unitSeg.set(p.units);
+    changed = true;
+  }
+  if (changed) renderAll();
 };
 const sourceSeg = segmented<UiState['source']>(
   [{ id: 'all', label: 'All' }, { id: 'disc', label: 'Disc', title: 'Only throws measured by the disc' }, { id: 'lab', label: 'Lab', title: 'Only throws entered in the flight lab' }],
@@ -246,11 +268,14 @@ function renderStats() {
     const st = stats(list.map((r) => m.get(r)));
     const t = ui.targets[m.key] ?? {};
     const inp = (side: 'min' | 'max') => {
-      const el = h('input.tnum', { type: 'number', step: m.dp ? 0.5 : 1, value: t[side] ?? '', placeholder: side, 'aria-label': `${m.label} target ${side}` });
+      // Targets are stored in metric (like the throws) and typed in the chosen units.
+      const d = display(m, units());
+      const tv = t[side];
+      const el = h('input.tnum', { type: 'number', step: d.dp ? 0.5 : 1, value: tv === undefined ? '' : +(tv * d.k).toFixed(d.dp + 1), placeholder: side, 'aria-label': `${m.label} target ${side} in ${d.word}` });
       el.addEventListener('change', () => {
         const cur = { ...(ui.targets[m.key] ?? {}) };
         if (el.value === '') delete cur[side];
-        else cur[side] = Number(el.value);
+        else cur[side] = Number(el.value) / d.k;
         if (cur.min === undefined && cur.max === undefined) delete ui.targets[m.key];
         else ui.targets[m.key] = cur;
         saveUi();
@@ -301,11 +326,11 @@ function renderTrend() {
   const pts = list.flatMap((r, i) => {
     const v = m.get(r);
     if (v === undefined) return [];
-    const val = m.unit === 'm' && units() === 'ft' ? v * 3.28084 : v;
-    return [{ id: r.id, v: val, selected: r.id === selected, label: `#${i + 1} · ${timeStr(r.ts)}: ${fmt(m, v, units())}` }];
+    return [{ id: r.id, v: shown(m, v, units())!, selected: r.id === selected, label: `#${i + 1} · ${timeStr(r.ts)}: ${fmt(m, v, units())}` }];
   });
   const t = ui.targets[m.key];
-  const conv = (x?: number) => (x === undefined ? undefined : m.unit === 'm' && units() === 'ft' ? x * 3.28084 : x);
+  const conv = (x?: number) => shown(m, x, units());
+  const d = display(m, units());
   const seg = segmented(trendKeys.map((k) => ({ id: k, label: metric(k).short })), m.key, (k) => {
     ui.trendKey = k;
     saveUi();
@@ -315,7 +340,7 @@ function renderTrend() {
   trendCard.replaceChildren(
     h('div.cardhead', {}, h('h2', {}, `Trend · ${m.label}`), h('span.meta', {}, t ? 'shaded: target band' : 'set a target in Stats to shade it')),
     h('div.scrollx', {}, seg.el),
-    trendChart(pts, { unit: m.unit === 'm' ? units() : m.unit, dp: m.dp, target: t && { min: conv(t.min), max: conv(t.max) }, onPick: (id) => select(id) }),
+    trendChart(pts, { unit: d.unit, dp: d.dp, target: t && { min: conv(t.min), max: conv(t.max) }, onPick: (id) => select(id) }),
   );
 }
 
@@ -393,7 +418,7 @@ function renderTable() {
       ? h('div.scrollx', {}, h('table.throws-t', {},
           h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '#'), sortTh('time', false, 'Time', 'Time'), sortTh('source', false, 'Source', 'Src'), sortTh('style', false, 'Backhand or forehand', 'Style'), ...COLS.map((k) => {
             const m = metric(k);
-            return sortTh(k, true, m.label, m.short, h('small', {}, m.unit === 'm' ? units() : m.unit));
+            return sortTh(k, true, m.label, m.short, h('small', {}, display(m, units()).unit));
           }), h('th', {}, 'Note'), h('th', {}, ''))),
           h('tbody', {}, ...body),
         ))
@@ -501,7 +526,7 @@ function detailView(): HTMLElement {
     if (!ms.length) return null;
     return h('div.dgroup', {}, h('h3', {}, title), h('dl.dgrid', {}, ...ms.flatMap((m) => {
       const v = m.get(r);
-      return [h('dt', {}, m.label), h('dd', {}, fmt(m, v, units()), m.sub && v !== undefined ? h('small', {}, m.sub(v)) : null, targetBadge(m.key, v))];
+      return [h('dt', {}, m.label), h('dd', {}, fmt(m, v, units()), m.sub && v !== undefined ? h('small', {}, m.sub(v, units())) : null, targetBadge(m.key, v))];
     })));
   });
   const f = flightOf(r);
@@ -522,8 +547,9 @@ function detailView(): HTMLElement {
       h('li', {}, `battery ${(r.raw.batteryMv / 1000).toFixed(2)} V`),
     )));
   }
-  const actual = h('input.tnum.wide', { type: 'number', min: 0, step: 1, value: r.actualDistance ?? '', placeholder: 'm', 'aria-label': 'Actual distance in metres' });
-  actual.addEventListener('change', () => store.update(r.id, { actualDistance: actual.value === '' ? undefined : Number(actual.value) }));
+  const ds = distScale(units());
+  const actual = h('input.tnum.wide', { type: 'number', min: 0, step: 1, value: r.actualDistance === undefined ? '' : Math.round(r.actualDistance * ds.k), placeholder: ds.unit, 'aria-label': `Actual distance in ${ds.word}` });
+  actual.addEventListener('change', () => store.update(r.id, { actualDistance: actual.value === '' ? undefined : Number(actual.value) / ds.k }));
   const note = h('textarea.notebox', { rows: 2, placeholder: 'What were you working on? e.g. "nose down, more snap"', 'aria-label': 'Note' });
   note.value = r.note ?? '';
   note.addEventListener('change', () => store.update(r.id, { note: note.value.trim() || undefined }));
@@ -547,7 +573,7 @@ function detailView(): HTMLElement {
     ),
     ...grid,
     h('div.dgroup', {}, h('h3', {}, 'Your notes'),
-      h('label.field.inline', {}, h('span', {}, 'Actual distance'), actual, h('span.muted', {}, 'm')),
+      h('label.field.inline', {}, h('span', {}, 'Actual distance'), actual, h('span.muted', {}, ds.unit)),
       note),
     f ? h('div.dgroup', {}, h('h3', {}, 'Path from above'), pathPlot([{ flight: f, color: SERIES[0], label: '' }], 'top', fmtLen), h('h3', {}, 'From the side'), pathPlot([{ flight: f, color: SERIES[0], label: '' }], 'side', fmtLen))
       : h('p.muted', {}, 'No valid speed, so no flight was simulated.'),
@@ -606,8 +632,9 @@ function speakThrow(r: ThrowRecord) {
     const m = metric(k);
     const v = m?.get(r);
     if (!m || v === undefined) return [];
-    const unit = m.unit === '°' ? 'degrees' : m.unit === 'm/s' ? 'metres per second' : m.unit === 'm' ? (units() === 'ft' ? 'feet' : 'metres') : m.unit;
-    const num = m.unit === 'm' && units() === 'ft' ? Math.round(v * 3.28084) : +v.toFixed(m.dp);
+    const d = display(m, units());
+    const unit = d.word;
+    const num = +(v * d.k).toFixed(d.dp);
     const st = onTarget(ui.targets, k, v);
     return [`${m.label} ${num < 0 ? 'minus ' + Math.abs(num) : num} ${unit}${st === 'in' ? ', good' : st === 'out' ? ', off target' : ''}`];
   });

@@ -1,4 +1,5 @@
 /** Talks to the discyboi server (server/main.ts): sign-in state and the throw API. */
+import type { Units } from '../units';
 import type { ThrowRecord } from './throws';
 
 export interface User {
@@ -62,13 +63,16 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
   },
   prefs: () => call<{ prefs: Prefs }>('GET', '/api/prefs'),
+  /** Changes only the fields given; the server keeps the rest. */
   setPrefs: (p: Prefs) => call<{ ok: true }>('PUT', '/api/prefs', p),
 };
 
-/** Settings shared by every device signed in to the account. */
+/** Settings shared by every device signed in to the account. Add a field here and in PREFS in server/main.ts. */
 export interface Prefs {
   /** When the current practice session began (ms since epoch). */
   sessionStart?: number;
+  /** Metric (m, m/s) or imperial (ft, mph). */
+  units?: Units;
 }
 
 export type ServerEvent = { op: 'put'; throws: ThrowRecord[] } | { op: 'del'; ids: string[] } | { op: 'clear' } | { op: 'prefs'; prefs: Prefs };

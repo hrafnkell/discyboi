@@ -1,4 +1,5 @@
 import type { Hand, Style, ThrowParams, Vec3 } from '../sim/types';
+import { speedAlt, speedScale, type Units } from '../units';
 import { h, section, segmented, slider } from './dom';
 
 export interface WindSetting {
@@ -23,8 +24,10 @@ export class ThrowPanel {
   /** Filled by main.ts with the release preview (kept out of the UI module so it stays DOM-only). */
   readonly previewSlot = h('div.previewslot');
 
-  constructor(private onThrow: () => void, private onEdit: () => void) {
+  constructor(private onThrow: () => void, private onEdit: () => void, private units: () => Units) {
     const p = this.params;
+    // Speeds stay m/s inside; in imperial the sliders read mph.
+    const speed = (step: number) => () => ({ ...speedScale(this.units()), step: this.units() === 'imperial' ? 1 : step });
     const edit = () => {
       this.updateAoa();
       this.onEdit();
@@ -43,7 +46,7 @@ export class ThrowPanel {
       'Release',
       h('div.row2', {}, this.handSeg.el, this.styleSeg.el),
       this.previewSlot,
-      s('speed', { label: 'Speed', min: 5, max: 38, step: 0.1, value: p.speed, unit: 'm/s', hint: (v) => `${Math.round(v * 3.6)} km/h · ${Math.round(v * 2.237)} mph`, onInput: (v) => ((p.speed = v), edit()) }),
+      s('speed', { label: 'Speed', min: 5, max: 38, step: 0.1, value: p.speed, scale: speed(0.1), hint: (v) => speedAlt(v, this.units()), onInput: (v) => ((p.speed = v), edit()) }),
       s('spin', { label: 'Spin', min: 0, max: 1800, step: 10, value: p.spinRpm, unit: 'rpm', hint: (v) => `${(v / 60).toFixed(1)} rev/s`, onInput: (v) => ((p.spinRpm = v), edit()) }),
       s('hyzer', { label: 'Hyzer', min: -45, max: 45, step: 0.5, value: p.hyzerDeg, unit: '°', hint: (v) => (v > 0.4 ? 'hyzer' : v < -0.4 ? 'anhyzer' : 'flat'), onInput: (v) => ((p.hyzerDeg = v), edit()) }),
       s('nose', { label: 'Nose', min: -20, max: 35, step: 0.5, value: p.noseDeg, unit: '°', hint: () => 'to horizon', onInput: (v) => ((p.noseDeg = v), edit()) }),
@@ -54,7 +57,7 @@ export class ThrowPanel {
       'Aim & wind',
       // Slider reads like the screen: drag right to aim right. The simulator's heading is + = left.
       s('heading', { label: 'Aim', min: -25, max: 25, step: 0.5, value: 0, unit: '°', hint: (v) => (v > 0.4 ? 'right' : v < -0.4 ? 'left' : 'centre'), onInput: (v) => ((p.headingDeg = -v), edit()) }),
-      s('wind', { label: 'Wind', min: 0, max: 15, step: 0.5, value: 0, unit: 'm/s', hint: (v) => `${Math.round(v * 3.6)} km/h`, onInput: (v) => ((this.wind.speed = v), edit()) }),
+      s('wind', { label: 'Wind', min: 0, max: 15, step: 0.5, value: 0, scale: speed(0.5), hint: (v) => `${Math.round(v * 3.6)} km/h`, onInput: (v) => ((this.wind.speed = v), edit()) }),
       s('windDir', {
         label: 'From', min: 0, max: 360, step: 5, value: 0, unit: '°',
         hint: (v) => ['head', 'head-right', 'right', 'tail-right', 'tail', 'tail-left', 'left', 'head-left', 'head'][Math.round(v / 45)],
@@ -79,6 +82,12 @@ export class ThrowPanel {
     this.handSeg.set(p.hand);
     this.styleSeg.set(p.style);
     this.updateAoa();
+  }
+
+  /** Re-reads the units setting into the speed sliders. */
+  refreshUnits() {
+    this.sl.speed.refresh();
+    this.sl.wind.refresh();
   }
 
   /** Turn the aim by `d` degrees (+ = right), as a slider edit. Used by dragging in the tee view. */

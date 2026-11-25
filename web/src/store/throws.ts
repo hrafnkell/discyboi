@@ -5,6 +5,7 @@
 import type { ThrowResult } from '../ble/protocol';
 import type { Mount } from '../sim/convert';
 import type { DiscSpec, FlightResult, Hand, ThrowParams } from '../sim/types';
+import { asUnits, type Units } from '../units';
 import { api, ApiError, type Prefs, type ServerEvent, type User } from './account';
 
 export interface ThrowRecord {
@@ -25,7 +26,7 @@ export interface ThrowRecord {
 export interface Settings {
   hand: Hand;
   mount: Mount;
-  units: 'm' | 'ft';
+  units: Units;
   basketDist: number;
 }
 
@@ -354,10 +355,12 @@ export class ThrowStore {
   }
 }
 
-export const DEFAULT_SETTINGS: Settings = { hand: 'R', mount: 'faceUp', units: 'm', basketDist: 100 };
+export const DEFAULT_SETTINGS: Settings = { hand: 'R', mount: 'faceUp', units: 'metric', basketDist: 100 };
 
 export function loadSettings(): Settings {
-  return { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(SETTINGS_KEY, {}) };
+  const s = { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(SETTINGS_KEY, {}) };
+  s.units = asUnits(s.units); // was 'm' | 'ft'
+  return s;
 }
 
 export function saveSettings(s: Settings) {

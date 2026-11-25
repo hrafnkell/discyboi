@@ -15,7 +15,8 @@ import { loadSettings, saveSettings, summarize, ThrowStore, type ThrowRecord } f
 import { AccountPanel } from './ui/accountPanel';
 import { DevicePanel } from './ui/devicePanel';
 import { DiscPicker } from './ui/discPicker';
-import { fmtDist, h, section, segmented, slider } from './ui/dom';
+import { h, section, segmented, slider } from './ui/dom';
+import { distScale, fmtDist, fmtSpeed, UNIT_OPTIONS, type Units } from './units';
 import { HistoryPanel } from './ui/history';
 import { StatsBar } from './ui/stats';
 import { ThrowPanel } from './ui/throwPanel';
@@ -41,6 +42,7 @@ const scene = new THREE.Scene();
 const world = new World(scene, renderer);
 const hole = () => practiceField(settings.basketDist);
 world.setHole(hole());
+world.setUnits(settings.units);
 const view = new FlightView(scene);
 const aimLine = new AimLine(scene);
 view.fmt = (m) => fmtDist(m, settings.units);
@@ -48,6 +50,7 @@ const rig = new CameraRig(renderer.domElement);
 
 // ---------------------------------------------------------------- UI
 const stats = new StatsBar();
+stats.units = settings.units;
 const store = new ThrowStore();
 const toasts = h('div.toasts', { 'aria-live': 'polite' });
 const toast = (msg: string, kind?: 'err') => {
@@ -63,7 +66,7 @@ const panel = new ThrowPanel(() => doThrow(), () => {
   settings.hand = panel.params.hand;
   saveSettings(settings);
   updatePreview();
-});
+}, () => settings.units);
 panel.set({ ...panel.params, hand: settings.hand });
 panel.previewSlot.append(preview.el);
 
@@ -76,13 +79,22 @@ const account = new AccountPanel(store, toast);
 const camSeg = segmented<CamMode>(CAM_MODES, rig.mode, (m) => rig.setMode(m));
 rig.onAim = (d) => panel.nudgeAim(d);
 
-const unitsSeg = segmented<'m' | 'ft'>([{ id: 'm', label: 'm' }, { id: 'ft', label: 'ft' }], settings.units, (u) => {
+/** Shows everything in the chosen units. `share` also tells the account's other devices. */
+function setUnits(u: Units, share: boolean) {
   settings.units = u;
   saveSettings(settings);
+  if (share) store.setPrefs({ units: u });
+  unitsSeg.set(u);
   stats.show(view.current, u);
   view.refreshLabel();
+  world.setUnits(u);
   history.render();
-});
+  panel.refreshUnits();
+  basket.refresh();
+}
+const unitsSeg = segmented<Units>(UNIT_OPTIONS, settings.units, (u) => setUnits(u, true));
+// Signed in, units are an account setting: a change on another device (or the stored one at sign-in) applies here.
+store.onPrefs = (p) => p.units && p.units !== settings.units && setUnits(p.units, false);
 const mountSeg = segmented<'faceUp' | 'faceDown'>(
   [{ id: 'faceUp', label: 'Face up', title: 'Board top faces the top of the disc' }, { id: 'faceDown', label: 'Face down', title: 'Board top faces the bottom of the disc' }],
   settings.mount,
@@ -92,7 +104,8 @@ const mountSeg = segmented<'faceUp' | 'faceDown'>(
   },
 );
 const basket = slider({
-  label: 'Basket', min: 20, max: 250, step: 5, value: settings.basketDist, unit: 'm',
+  label: 'Basket', min: 20, max: 250, step: 5, value: settings.basketDist,
+  scale: () => ({ ...distScale(settings.units), step: settings.units === 'imperial' ? 10 : 5 }),
   onInput: (v) => {
     settings.basketDist = v;
     saveSettings(settings);
@@ -174,7 +187,7 @@ function onDiscThrow(r: ThrowResult) {
   play(flight, disc);
   record(disc, flight, { source: 'disc', params, raw: r, anglesEstimated: !c.anglesValid });
   const note = !c.anglesValid ? ' (no still moment: angles estimated)' : r.flags & FLAG_REF_APPROX ? ' (disc not held still: approximate)' : '';
-  toast(`Throw #${r.throwId}: ${styleName(c.params.style)}, ${c.params.speed.toFixed(1)} m/s, ${Math.round(c.params.spinRpm)} rpm${note}`);
+  toast(`Throw #${r.throwId}: ${styleName(c.params.style)}, ${fmtSpeed(c.params.speed, settings.units)}, ${Math.round(c.params.spinRpm)} rpm${note}`);
 }
 
 function replay(r: ThrowRecord) {

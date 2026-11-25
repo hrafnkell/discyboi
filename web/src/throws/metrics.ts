@@ -1,5 +1,6 @@
 /** The per-throw numbers the history page shows, compares and charts. */
 import type { ThrowRecord } from '../store/throws';
+import { scaleFor, speedAlt, type Units } from '../units';
 
 export interface Metric {
   key: string;
@@ -10,15 +11,13 @@ export interface Metric {
   /** Undefined when the throw doesn't have it (e.g. a manual throw has no raw IMU data). */
   get(r: ThrowRecord): number | undefined;
   /** Shown under the value, e.g. km/h for speed. */
-  sub?(v: number): string;
+  sub?(v: number, units: Units): string;
   /** Whether it's part of the release (vs a simulated result or a raw sensor value). */
   group: 'release' | 'sensor' | 'result';
 }
 
-const FT = 3.28084;
-
 export const METRICS: Metric[] = [
-  { key: 'speed', label: 'Speed', short: 'Speed', unit: 'm/s', dp: 1, group: 'release', get: (r) => r.params.speed, sub: (v) => `${Math.round(v * 3.6)} km/h · ${Math.round(v * 2.237)} mph` },
+  { key: 'speed', label: 'Speed', short: 'Speed', unit: 'm/s', dp: 1, group: 'release', get: (r) => r.params.speed, sub: (v, u) => speedAlt(v, u) },
   { key: 'spin', label: 'Spin', short: 'Spin', unit: 'rpm', dp: 0, group: 'release', get: (r) => r.params.spinRpm, sub: (v) => `${(v / 60).toFixed(1)} rev/s` },
   { key: 'hyzer', label: 'Hyzer', short: 'Hyz', unit: '°', dp: 1, group: 'release', get: (r) => r.params.hyzerDeg, sub: (v) => (v > 1 ? 'hyzer' : v < -1 ? 'anhyzer' : 'flat') },
   { key: 'nose', label: 'Nose', short: 'Nose', unit: '°', dp: 1, group: 'release', get: (r) => r.params.noseDeg, sub: (v) => (v > 0.5 ? 'nose up' : v < -0.5 ? 'nose down' : 'level') },
@@ -35,13 +34,24 @@ export const METRICS: Metric[] = [
 
 export const metric = (key: string) => METRICS.find((m) => m.key === key)!;
 
-/** Formats a metric value; distances follow the m/ft setting. */
-export function fmt(m: Metric, v: number | undefined, units: 'm' | 'ft' = 'm', withUnit = true): string {
+/** How a metric reads in the chosen units: display = stored × k, with its unit and decimals. */
+export function display(m: Metric, units: Units) {
+  const sc = scaleFor(m.unit, units);
+  // Feet and mph are ~3× and ~2× bigger numbers: one decimal less keeps the same precision.
+  const dp = sc.k > 1.5 ? Math.max(0, m.dp - 1) : m.dp;
+  return { ...sc, dp };
+}
+
+/** The value in display units, or undefined. */
+export const shown = (m: Metric, v: number | undefined, units: Units) => (v === undefined ? undefined : v * scaleFor(m.unit, units).k);
+
+/** Formats a metric value in the chosen units. */
+export function fmt(m: Metric, v: number | undefined, units: Units = 'metric', withUnit = true): string {
   if (v === undefined || !Number.isFinite(v)) return '–';
-  if (m.unit === 'm' && units === 'ft') return `${Math.round(v * FT)}${withUnit ? ' ft' : ''}`;
-  const s = v.toFixed(m.dp);
+  const d = display(m, units);
+  const s = (v * d.k).toFixed(d.dp);
   if (!withUnit) return s;
-  return m.unit === '°' ? `${s}°` : `${s} ${m.unit}`;
+  return d.unit === '°' ? `${s}°` : `${s} ${d.unit}`;
 }
 
 export interface Stats {

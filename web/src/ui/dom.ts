@@ -27,25 +27,49 @@ export interface SliderOpts {
   unit?: string;
   hint?: (v: number) => string;
   onInput: (v: number) => void;
+  /**
+   * Show and edit the value in other units (e.g. mph) while it stays SI inside: shown = value × k.
+   * Read on every refresh(), so a units toggle only needs to call refresh().
+   */
+  scale?: () => { k: number; unit: string; step: number };
 }
 
 export interface Slider {
   el: HTMLElement;
   set(v: number, silent?: boolean): void;
   get(): number;
+  /** Re-reads the scale (units changed). */
+  refresh(): void;
 }
 
 /** Labelled range input with an editable numeric field and an optional derived hint. */
 export function slider(o: SliderOpts): Slider {
-  const range = h('input', { type: 'range', min: o.min, max: o.max, step: o.step, value: o.value, 'aria-label': o.label });
-  const num = h('input.num', { type: 'number', min: o.min, max: o.max, step: o.step, value: o.value, 'aria-label': `${o.label} value` });
+  const range = h('input', { type: 'range', 'aria-label': o.label });
+  const num = h('input.num', { type: 'number', 'aria-label': `${o.label} value` });
   const hint = h('span.hint');
-  const decimals = Math.max(0, (String(o.step).split('.')[1] ?? '').length);
+  const unitEl = h('span.unit');
+  let sc = { k: 1, unit: o.unit ?? '', step: o.step };
+  let decimals = 0;
   let value = o.value;
   const show = () => {
-    range.value = String(value);
-    if (document.activeElement !== num) num.value = value.toFixed(decimals);
+    range.value = String(value * sc.k);
+    if (document.activeElement !== num) num.value = (value * sc.k).toFixed(decimals);
     hint.textContent = o.hint ? o.hint(value) : '';
+  };
+  const refresh = () => {
+    sc = o.scale ? o.scale() : sc;
+    decimals = Math.max(0, (String(sc.step).split('.')[1] ?? '').length);
+    // Snap the ends to the step so the range ticks land on round numbers (60, 70… ft, not 65.6, 75.6…).
+    const lo = Math.floor((o.min * sc.k) / sc.step + 1e-9) * sc.step;
+    const hi = Math.ceil((o.max * sc.k) / sc.step - 1e-9) * sc.step;
+    for (const el of [range, num]) {
+      el.min = String(+lo.toFixed(decimals));
+      el.max = String(+hi.toFixed(decimals));
+      el.step = String(sc.step);
+    }
+    unitEl.textContent = sc.unit;
+    unitEl.hidden = !sc.unit;
+    show();
   };
   const set = (v: number, silent = false) => {
     if (!Number.isFinite(v)) return;
@@ -53,12 +77,12 @@ export function slider(o: SliderOpts): Slider {
     show();
     if (!silent) o.onInput(value);
   };
-  range.addEventListener('input', () => set(Number(range.value)));
-  num.addEventListener('change', () => set(Number(num.value)));
+  range.addEventListener('input', () => set(Number(range.value) / sc.k));
+  num.addEventListener('change', () => set(Number(num.value) / sc.k));
   num.addEventListener('blur', show);
-  show();
-  const el = h('div.slider', {}, h('div.slider-head', {}, h('label', {}, o.label), hint, h('span.numwrap', {}, num, o.unit ? h('span.unit', {}, o.unit) : null)), range);
-  return { el, set, get: () => value };
+  refresh();
+  const el = h('div.slider', {}, h('div.slider-head', {}, h('label', {}, o.label), hint, h('span.numwrap', {}, num, unitEl)), range);
+  return { el, set, get: () => value, refresh };
 }
 
 export function segmented<T extends string>(options: { id: T; label: string; title?: string }[], value: T, onChange: (v: T) => void) {
@@ -80,4 +104,3 @@ export function section(title: string, ...kids: (Node | null)[]) {
   return h('section.card', {}, h('h2', {}, title), ...kids);
 }
 
-export const fmtDist = (m: number, units: 'm' | 'ft') => (units === 'ft' ? `${Math.round(m * 3.28084)} ft` : `${m.toFixed(m < 10 ? 1 : 0)} m`);

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { Vec3 } from '../sim/types';
 import { toThree } from './coords';
+import type { Units } from '../units';
 import { Label } from './labels';
 
 export interface Obstacle {
@@ -22,6 +23,45 @@ export interface Hole {
 }
 
 /** Open practice field: basket at `basketDist`, a loose tree line well off the fairway. */
+/** Rings across the fairway with labels, plus a centre line with ticks; in metres or feet. */
+function distanceMarks(u: Units): THREE.Group {
+  const g = new THREE.Group();
+  // metric: rings and labels every 25 m, ticks every 5 m. imperial: every 100 ft, ticks every 20 ft.
+  const [unit, major, minor, last] = u === 'imperial' ? [0.3048, 100, 20, 800] : [1, 25, 5, 250];
+  const label = u === 'imperial' ? 'ft' : 'm';
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false });
+  for (let n = major; n <= last; n += major) {
+    const d = n * unit;
+    const arc = new THREE.Mesh(new THREE.RingGeometry(d - 0.08, d + 0.08, 96, 1, -Math.PI / 5, (2 * Math.PI) / 5), ringMat);
+    arc.rotation.x = -Math.PI / 2;
+    arc.position.y = 0.02;
+    g.add(arc);
+    const lab = new Label(`${n} ${label}`, d >= 100 ? 2.5 : 1.75, 0.03);
+    lab.sprite.position.set(d, 0.3, -d * Math.sin(Math.PI / 5) - 2);
+    g.add(lab.sprite);
+  }
+  const len = last * unit;
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.06), ringMat);
+  line.rotation.x = -Math.PI / 2;
+  line.position.set(len / 2, 0.02, 0);
+  g.add(line);
+  const tickMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+  for (let n = minor; n <= last; n += minor) {
+    const d = n * unit;
+    const isMajor = n % major === 0;
+    const tick = new THREE.Mesh(new THREE.PlaneGeometry(isMajor ? 0.12 : 0.08, isMajor ? 2.4 : 0.9), isMajor ? tickMat : ringMat);
+    tick.rotation.x = -Math.PI / 2;
+    tick.position.set(d, 0.021, 0);
+    g.add(tick);
+    if (isMajor) {
+      const lab = new Label(`${n}`, 0.7, 0.02);
+      lab.sprite.position.set(d, 0.05, 1.6); // just right of the line, clear of the flight path
+      g.add(lab.sprite);
+    }
+  }
+  return g;
+}
+
 export function practiceField(basketDist = 100): Hole {
   const rnd = mulberry32(7);
   const obstacles: Obstacle[] = [];
@@ -127,6 +167,7 @@ function treeMesh(height: number, radius: number, rnd: () => number): THREE.Grou
 export class World {
   readonly group = new THREE.Group();
   private holeGroup = new THREE.Group();
+  private marks = {} as Record<Units, THREE.Group>;
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     scene.add(this.group);
@@ -180,34 +221,12 @@ export class World {
       this.group.add(stripe);
     }
 
-    // Distance rings every 25 m (arcs across the fairway) with labels.
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false });
-    for (let d = 25; d <= 250; d += 25) {
-      const arc = new THREE.Mesh(new THREE.RingGeometry(d - 0.08, d + 0.08, 96, 1, -Math.PI / 5, (2 * Math.PI) / 5), ringMat);
-      arc.rotation.x = -Math.PI / 2;
-      arc.position.y = 0.02;
-      this.group.add(arc);
-      const lab = new Label(`${d} m`, d >= 100 ? 2.5 : 1.75, 0.03);
-      lab.sprite.position.set(d, 0.3, -d * Math.sin(Math.PI / 5) - 2);
-      this.group.add(lab.sprite);
-    }
-    // Centre line with ticks every 5 m (longer every 25 m) and a distance label every 25 m.
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(250, 0.06), ringMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.set(125, 0.02, 0);
-    this.group.add(line);
-    const tickMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
-    for (let d = 5; d <= 250; d += 5) {
-      const major = d % 25 === 0;
-      const tick = new THREE.Mesh(new THREE.PlaneGeometry(major ? 0.12 : 0.08, major ? 2.4 : 0.9), major ? tickMat : ringMat);
-      tick.rotation.x = -Math.PI / 2;
-      tick.position.set(d, 0.021, 0);
-      this.group.add(tick);
-      if (major) {
-        const lab = new Label(`${d}`, 0.7, 0.02);
-        lab.sprite.position.set(d, 0.05, 1.6); // just right of the line, clear of the flight path
-        this.group.add(lab.sprite);
-      }
+    // Distance rings, centre line ticks and labels, one set per unit system; setUnits() picks one.
+    for (const u of ['metric', 'imperial'] as const) {
+      const g = distanceMarks(u);
+      g.visible = u === 'metric';
+      this.marks[u] = g;
+      this.group.add(g);
     }
 
     // Tee pad.
@@ -215,6 +234,12 @@ export class World {
     pad.position.set(-2.5, 0.03, 0);
     pad.receiveShadow = true;
     this.group.add(pad);
+  }
+
+  /** Shows the distance markings in metres (every 25 m) or feet (every 100 ft). */
+  setUnits(u: Units) {
+    this.marks.metric.visible = u === 'metric';
+    this.marks.imperial.visible = u === 'imperial';
   }
 
   setHole(hole: Hole) {

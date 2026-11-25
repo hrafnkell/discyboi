@@ -1,5 +1,6 @@
 import type { Settings, ThrowRecord, ThrowStore } from '../store/throws';
-import { fmtDist, h } from './dom';
+import { fmtDist, fmtSpeed } from '../units';
+import { h } from './dom';
 
 export class HistoryPanel {
   readonly el: HTMLElement;
@@ -77,7 +78,7 @@ export class HistoryPanel {
               h('span.lat', {}, Math.abs(lat) < 1 ? 'centre' : `${fmtDist(Math.abs(lat), units)} ${lat > 0 ? 'L' : 'R'}`),
               r.source === 'disc' ? h('span.tag', { title: r.anglesEstimated ? 'From the disc (angles estimated)' : 'From the disc' }, r.anglesEstimated ? 'disc*' : 'disc') : null,
             ),
-            h('div.sub', {}, `${r.disc.name} · ${p.speed.toFixed(1)} m/s · ${Math.round(p.spinRpm)} rpm · hyz ${p.hyzerDeg.toFixed(0)}° · nose ${p.noseDeg.toFixed(0)}° · ${p.hand}H${p.style}`),
+            h('div.sub', {}, `${r.disc.name} · ${fmtSpeed(p.speed, units)} · ${Math.round(p.spinRpm)} rpm · hyz ${p.hyzerDeg.toFixed(0)}° · nose ${p.noseDeg.toFixed(0)}° · ${p.hand}H${p.style}`),
             h('div.sub', {}, new Date(r.ts).toLocaleString()),
           ),
           h('div.tools', {}, ghost, actual, del),

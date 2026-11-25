@@ -1,5 +1,6 @@
 import type { FlightResult } from '../sim/types';
-import { fmtDist, h } from './dom';
+import { fmtDist, fmtSpeed, type Units } from '../units';
+import { h } from './dom';
 
 export class StatsBar {
   readonly el: HTMLElement;
@@ -18,7 +19,11 @@ export class StatsBar {
     );
   }
 
-  show(f: FlightResult | undefined, units: 'm' | 'ft') {
+  /** Units for the live speed readout; show() takes them explicitly. */
+  units: Units = 'metric';
+
+  show(f: FlightResult | undefined, units: Units) {
+    this.units = units;
     if (!f) return;
     const lat = f.lateral;
     this.cells.distance.textContent = fmtDist(f.distance, units);
@@ -29,6 +34,6 @@ export class StatsBar {
   }
 
   live(speed: number) {
-    this.cells.live.textContent = `${speed.toFixed(1)} m/s`;
+    this.cells.live.textContent = fmtSpeed(speed, this.units);
   }
 }

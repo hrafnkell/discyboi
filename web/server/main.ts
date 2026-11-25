@@ -103,6 +103,17 @@ setInterval(() => {
 
 /** Interest sign-ups: at most this many per IP per hour, and this many stored in all. */
 const INTEREST_PER_HOUR = 5;
+/**
+ * Account settings shared by all of a user's devices (GET/PUT /api/prefs). Each check returns the
+ * value to store, or undefined to refuse it. A new setting is one line here plus a field in Prefs
+ * (src/store/account.ts).
+ */
+const PREFS: Record<string, (v: unknown) => unknown> = {
+  // When the current practice session began (ms since epoch).
+  sessionStart: (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : undefined),
+  units: (v) => (v === 'metric' || v === 'imperial' ? v : undefined),
+};
+
 const MAX_INTEREST = Number(env.DISCYBOI_MAX_INTEREST ?? 2000);
 const signups = new Map<string, number[]>();
 function signupLimited(ip: string): boolean {
@@ -323,11 +334,18 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
   if (path === '/api/prefs') {
     if (method === 'GET') return new Response(`{"prefs":${db.getPrefs(user.id)}}`, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...SEC_HEADERS } });
     if (method === 'PUT') {
-      // Only known fields are kept. sessionStart: when the current practice session began (ms).
-      const b = await body<{ sessionStart?: unknown }>(req);
-      const s = b?.sessionStart;
-      if (typeof s !== 'number' || !Number.isFinite(s) || s < 0) return err(400, 'Send { sessionStart: <ms> }');
-      const data = JSON.stringify({ sessionStart: Math.round(s) });
+      // Send only the fields that changed; the rest are kept. Unknown fields are refused.
+      const b = await body<Record<string, unknown>>(req);
+      if (!b || typeof b !== 'object' || Array.isArray(b) || !Object.keys(b).length) return err(400, `Send an object with any of: ${Object.keys(PREFS).join(', ')}`);
+      const prefs = JSON.parse(db.getPrefs(user.id)) as Record<string, unknown>;
+      for (const [k, v] of Object.entries(b)) {
+        const check = Object.hasOwn(PREFS, k) ? PREFS[k] : undefined;
+        if (!check) return err(400, `Unknown setting: ${k}`);
+        const ok = check(v);
+        if (ok === undefined) return err(400, `Bad value for ${k}`);
+        prefs[k] = ok;
+      }
+      const data = JSON.stringify(prefs);
       db.setPrefs(user.id, data);
       publishRaw(user.id, `{"op":"prefs","prefs":${data}}`);
       return json({ ok: true });
