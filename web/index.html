@@ -43,8 +43,15 @@
           <p class="fine">The lab also works without a disc: enter a throw by hand and watch it fly.</p>
         </div>
         <figure class="hero-img">
-          <img src="/img/on-disc.jpg" width="1800" height="1013" alt="The discyboi case mounted under the centre of a red disc" />
+          <img data-full="/img/full/on-disc.jpg" src="/img/on-disc.jpg" width="1800" height="1013" alt="The discyboi case mounted under the centre of a red disc" />
         </figure>
+      </section>
+      <section id="note">
+          <aside class="note">
+            <strong>A hobby project, still being tuned.</strong> The angles and speeds have not yet been checked against a radar or camera,
+            so treat them as a really good guide. Everything works, the hardware and software tested with hundreds of real throws. The numbers check out
+            against my tree-tossing spaghetti arm, and the hardware supports pro-level throws handily (in theory).
+          </aside>
       </section>
 
       <section id="measures">
@@ -83,34 +90,34 @@
         <h2>How it works</h2>
         <div class="steps">
           <article class="step">
-            <img src="/img/board.jpg" width="1400" height="788" loading="lazy" alt="The assembled discyboi circuit board" />
+            <img data-full="/img/full/board.jpg" src="/img/board.jpg" width="1400" height="788" loading="lazy" alt="The assembled discyboi circuit board" />
             <div>
               <span class="num">1</span>
               <h3>A small board with two motion sensors</h3>
               <p>
                 A Bluetooth module (nRF54L15) and two motion sensors, one on the spin axis and one 9&nbsp;mm out. They are
-                read 960 times a second and handle up to 320&nbsp;g. A CR2032 coin cell powers it.
+                read 960 times a second and handle up to 320&nbsp;g. A CR2032 coin cell powers it for approx 40hrs of throwing.
               </p>
             </div>
           </article>
           <article class="step">
-            <img src="/img/jig.jpg" width="1400" height="788" loading="lazy" alt="A printed three-armed jig centring the case under a disc" />
+            <img data-full="/img/full/jig.jpg" src="/img/jig.jpg" width="1400" height="788" loading="lazy" alt="A printed three-armed jig centring the case under a disc" />
             <div>
               <span class="num">2</span>
               <h3>A printed case under the flight plate</h3>
               <p>
-                The case is 9.6&nbsp;mm tall and sticks on with tape. A printed jig centres it on the disc's injection mark,
-                so the sensor sits on the spin axis. Board, cell and case add about 12–14&nbsp;g.
+                The case is 9.6&nbsp;mm tall and sticks on with tape. A printed jig helps to center it on the disc,
+                so the sensor sits on the spin axis. Board, cell and case add about 12–14&nbsp;g, so sticking it on a lighter disc than you would normally throw would be preferable.
               </p>
             </div>
           </article>
           <article class="step">
-            <img src="/img/flight-lab.jpg" width="1597" height="1073" loading="lazy" alt="The flight lab showing a simulated throw from above" />
+            <img data-full="/img/flight-lab.jpg" src="/img/flight-lab.jpg" width="1597" height="1073" loading="lazy" alt="The flight lab showing a simulated throw from above" />
             <div>
               <span class="num">3</span>
               <h3>Your browser does the rest</h3>
               <p>
-                Connect from Chrome or Edge on a laptop or Android phone; there is no app to install. Each throw arrives a
+                Connect from Chrome or Edge on a laptop, desktop or Android phone; there is no app to install. Each throw arrives a
                 moment after release and is simulated as a full flight for the disc you pick.
               </p>
             </div>
@@ -123,11 +130,11 @@
         <p class="section-lead">Two pages: one to see a single throw fly, one to work on your form over a session.</p>
         <div class="shots">
           <figure class="shot wide">
-            <img src="/img/throws.jpg" width="1538" height="1074" loading="lazy" alt="The throws page with a session's numbers, a trend chart and a list of throws" />
+            <img data-full="/img/throws.jpg" src="/img/throws.jpg" width="1538" height="1074" loading="lazy" alt="The throws page with a session's numbers, a trend chart and a list of throws" />
             <figcaption><strong>Throws.</strong> Every throw of a session with trends, targets, backhand and forehand filters, and side-by-side comparison.</figcaption>
           </figure>
           <figure class="shot phone">
-            <img src="/img/phone.jpg" width="720" height="1250" loading="lazy" alt="The throws page on a phone showing the latest throw" />
+            <img data-full="/img/full/phone.jpg" src="/img/phone.jpg" width="720" height="1250" loading="lazy" alt="The throws page on a phone showing the latest throw" />
             <figcaption><strong>On your phone.</strong> Big numbers for the latest throw, read out loud if you like.</figcaption>
           </figure>
         </div>
@@ -149,8 +156,8 @@
             <li><strong>Licence:</strong> open hardware and open source. Build your own freely; if you share or sell one, credit the project and share your changes.</li>
           </ul>
           <div class="thumbs">
-            <img src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
-            <img src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
+            <img data-full="/img/full/paste.jpg" src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
+            <img data-full="/img/full/programming.jpg" src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
           </div>
         </div>
         <div class="cta">
@@ -174,15 +181,15 @@
           </table>
         </div>
         <p class="fine">
-          Rough single-unit prices from Mouser and JLCPCB, not quotes. A first build also pays for a minimum board order and
-          shipping, about US$60–90 all in. You need to be comfortable reflow-soldering 0.5&nbsp;mm-pitch parts.
+          Rough single-unit prices from Mouser and JLCPCB, not quotes. If you're just building one, you need a minimum order of 5 PCBs,
+          add shipping and realistically the cost would be around $90 USD. You need to be comfortable reflow-soldering very tiny 0.5&nbsp;mm-pitch parts.
         </p>
 
         <aside class="interest">
           <h3>Want one without the soldering?</h3>
           <p>
             I'm gauging interest in having a small batch of boards made. An assembled, tested board would be about
-            <strong>US$60, shipped anywhere in the world</strong>, or <strong>US$10 more</strong> with the 3D-printed case and
+            <strong>US$70, shipped anywhere in the world</strong>, or <strong>US$10 more</strong> with the 3D-printed case and
             mounting hardware (screws and VHB tape).
           </p>
           <p>
@@ -190,11 +197,6 @@
             seriously interested.
           </p>
           <a class="btn" href="mailto:info@discyboi.com?subject=discyboi%20board">Get in touch</a>
-        </aside>
-
-        <aside class="note">
-          <strong>A hobby project, still being tuned.</strong> The angles have not yet been checked against a camera, so treat
-          them as a guide.
         </aside>
       </section>
     </main>
@@ -206,5 +208,13 @@
       <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
       <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Open source licence</a>
     </footer>
+    <dialog class="lightbox" aria-label="Image viewer">
+      <img alt="" />
+      <p class="lb-cap"></p>
+      <button class="lb-btn lb-prev" type="button" aria-label="Previous image">‹</button>
+      <button class="lb-btn lb-next" type="button" aria-label="Next image">›</button>
+      <button class="lb-btn lb-close" type="button" aria-label="Close">×</button>
+    </dialog>
+    <script type="module" src="/src/landing.ts"></script>
   </body>
 </html>
