@@ -79,6 +79,8 @@ The server is `bun run server`: `server/main.ts` (Bun.serve) and `server/db.ts` 
 | `DISCYBOI_FIRMWARE` | `firmware/` | folder with the disc firmware on offer, served under `/firmware/` (see below) |
 | `DISCYBOI_MAX_INTEREST` | 2000 | most sign-ups kept from the landing page's "want a board?" form |
 | `DISCYBOI_ORIGINS` | | extra allowed origins for writes, comma separated |
+| `DISCYBOI_HOST` | | the canonical host name, e.g. `discyboi.com` |
+| `DISCYBOI_ALIASES` | | host names that redirect (308) to `DISCYBOI_HOST`, path and query kept, comma separated |
 
 Over plain http on a LAN the session cookie and password travel unencrypted. That's fine at home, but put it behind https (e.g. `tailscale serve`, which Web Bluetooth also needs) before using it anywhere else, and set sign-up to `closed` once your accounts exist if the server is reachable from the internet.
 

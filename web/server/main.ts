@@ -4,7 +4,8 @@
  *
  * Env: PORT (8787), DISCYBOI_DB (./data/discyboi.db), DISCYBOI_SIGNUP (open | closed, default open),
  * DISCYBOI_MAX_THROWS (per account, 20000), DISCYBOI_TRUST_PROXY (1 = use X-Forwarded-For / -Proto),
- * DISCYBOI_ORIGINS (extra allowed origins, comma separated).
+ * DISCYBOI_ORIGINS (extra allowed origins, comma separated), DISCYBOI_HOST (canonical host, e.g. discyboi.com)
+ * with DISCYBOI_ALIASES (hosts that 308-redirect to it, comma separated).
  */
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, normalize, resolve } from 'node:path';
@@ -17,6 +18,8 @@ const SIGNUP_OPEN = (env.DISCYBOI_SIGNUP ?? 'open') !== 'closed';
 const MAX_THROWS = Number(env.DISCYBOI_MAX_THROWS ?? 20000);
 const TRUST_PROXY = env.DISCYBOI_TRUST_PROXY === '1';
 const EXTRA_ORIGINS = new Set((env.DISCYBOI_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+const HOST = env.DISCYBOI_HOST?.trim();
+const ALIASES = new Set((env.DISCYBOI_ALIASES ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 const DIST = resolve(import.meta.dir, '../dist');
 // Disc firmware offered to connected discs: manifest.json + the signed image, put there by firmware/release.sh.
 const FIRMWARE = resolve(env.DISCYBOI_FIRMWARE ?? join(import.meta.dir, '../firmware'));
@@ -364,6 +367,8 @@ const server = Bun.serve({
   maxRequestBodySize: 8 * 1024 * 1024,
   async fetch(req, srv) {
     const url = new URL(req.url), path = url.pathname;
+    // Old and www hostnames go to the one real address, keeping the path and query.
+    if (HOST && ALIASES.has(url.hostname.toLowerCase())) return redirect(`https://${HOST}${path}${url.search}`);
     try {
       if (path.startsWith('/api/')) return await api(req, srv, path);
       if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
