@@ -362,7 +362,7 @@ function renderTable() {
       cb.addEventListener('change', () => toggleCompare(r.id, cb.checked));
       const slot = compare.indexOf(r.id);
       return h('tr', { class: [r.id === selected ? 'sel' : '', r.id === newestId && list.length > 1 ? 'newest' : ''].join(' ').trim() || undefined, onclick: (e: Event) => {
-        if ((e.target as HTMLElement).closest('input')) return;
+        if ((e.target as HTMLElement).closest('input, button')) return;
         select(r.id);
       } },
         h('td.cmp', {}, cb, slot >= 0 ? h('span.slot', { style: `background:${SERIES[slot]}` }, LETTERS[slot]) : null),
@@ -377,6 +377,7 @@ function renderTable() {
           return h('td.num', { class: ot ? `num ${ot}` : 'num' }, fmt(m, v, units(), false));
         }),
         h('td.note', { title: r.note ?? '' }, r.note ?? ''),
+        h('td.del', {}, delButton(r.id)),
       );
     });
   tableCard.replaceChildren(
@@ -392,11 +393,41 @@ function renderTable() {
           h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, '#'), sortTh('time', false, 'Time', 'Time'), sortTh('source', false, 'Source', 'Src'), sortTh('style', false, 'Backhand or forehand', 'Style'), ...COLS.map((k) => {
             const m = metric(k);
             return sortTh(k, true, m.label, m.short, h('small', {}, m.unit === 'm' ? units() : m.unit));
-          }), h('th', {}, 'Note'))),
+          }), h('th', {}, 'Note'), h('th', {}, ''))),
           h('tbody', {}, ...body),
         ))
       : h('p.muted', {}, ui.source !== 'all' || ui.style !== 'all' ? 'No throws match the filters in this range.' : 'No throws in this range.'),
   );
+}
+
+/** Throw whose row delete button has been pressed once; a second press within a few seconds deletes it. */
+let armedDelete: string | undefined;
+let armedTimer: ReturnType<typeof setTimeout> | undefined;
+
+function delButton(id: string): HTMLElement {
+  const armed = armedDelete === id;
+  return h('button.rowdel', { type: 'button', class: armed ? 'rowdel armed' : 'rowdel', title: armed ? 'Press again to delete this throw' : 'Delete this throw', 'aria-label': armed ? 'Confirm delete' : 'Delete throw', onclick: () => {
+    clearTimeout(armedTimer);
+    if (armedDelete !== id) {
+      armedDelete = id;
+      armedTimer = setTimeout(() => {
+        armedDelete = undefined;
+        renderTable();
+      }, 3000);
+      renderTable();
+      return;
+    }
+    armedDelete = undefined;
+    removeThrow(id);
+  } }, armed ? 'Delete?' : '×');
+}
+
+/** Deletes a throw everywhere (with its raw recording, on the server). The store's change event redraws. */
+function removeThrow(id: string) {
+  const i = compare.indexOf(id);
+  if (i >= 0) compare.splice(i, 1);
+  if (selected === id) selected = undefined;
+  store.remove(id);
 }
 
 function exportJson() {
@@ -485,10 +516,7 @@ function detailView(): HTMLElement {
       }, 2500);
       return;
     }
-    const i = compare.indexOf(r.id);
-    if (i >= 0) compare.splice(i, 1);
-    selected = undefined;
-    store.remove(r.id);
+    removeThrow(r.id);
   } }, 'Delete');
   const inCmp = compare.includes(r.id);
   return h('div.detail', {},

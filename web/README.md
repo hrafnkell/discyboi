@@ -50,7 +50,7 @@ A separate page for reviewing throws, reached from **Throws →** in the flight 
 - **Latest throw:** big tiles for speed, spin, hyzer, nose, launch, angle of attack, wobble and simulated distance, each with the difference from the average of the other throws in range.
 - **Range:** *Session* (since you pressed *New session*), today, 7 days or all.
 - **Trend:** one metric over the throws in range. Dashed line is the mean, the shaded band is the target. Click a dot to open that throw.
-- **Throws table:** click a row for its details. Tick up to 6 to compare.
+- **Throws table:** click a row for its details. Tick up to 6 to compare. The × at the end of a row deletes that throw: press it, then press *Delete?* within three seconds. Deleting is permanent and, signed in, also removes the throw's raw recording and applies on your other devices.
 - **Stats:** mean, spread (standard deviation) and range per metric, with an optional target min/max. Targets colour the tiles and table cells and count hits ("4/9 on target").
 - **Detail:** every number, the disc's flags (angles measured or estimated, spin source, landing), actual distance and a note, plus the simulated path from above and from the side. *Open in flight lab* replays it in 3D (`index.html?throw=<id>`).
 - **Compare:** throws side by side with differences against the first one ticked (A), and their paths overlaid.
