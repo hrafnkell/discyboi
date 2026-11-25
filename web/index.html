@@ -4,11 +4,169 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f1720" />
-    <title>discyboi flight lab</title>
+    <title>discyboi – a flight tracker for disc golf discs</title>
+    <meta name="description" content="A 34 mm sensor board that rides under a disc golf disc and reports each throw's speed, spin, hyzer and nose angle to your browser over Bluetooth." />
+    <meta property="og:title" content="discyboi – a flight tracker for disc golf discs" />
+    <meta property="og:description" content="Speed, spin, hyzer and nose angle of every throw, measured on the disc and sent to your browser over Bluetooth." />
+    <meta property="og:image" content="https://discyboi.com/img/on-disc.jpg" />
+    <meta property="og:url" content="https://discyboi.com/" />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://discyboi.com/" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='14' ry='6' fill='%23ffb703'/%3E%3Cellipse cx='16' cy='15' rx='14' ry='6' fill='%23fb8500'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/landing.css" />
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <header class="nav">
+      <a class="brand" href="./"><span class="logo"></span>discyboi</a>
+      <nav>
+        <a href="#measures">What it measures</a>
+        <a href="#how">How it works</a>
+        <a href="#lab">The lab</a>
+        <a href="#build">Build one</a>
+      </nav>
+      <a class="btn small" href="./lab/">Open the lab</a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-text">
+          <p class="eyebrow">Disc golf · build it yourself</p>
+          <h1>A flight tracker that rides on your disc</h1>
+          <p class="lead">
+            discyboi is a 34&nbsp;mm sensor board that sticks under a disc golf disc. It measures each throw at release
+            and sends the numbers to your browser over Bluetooth: speed, spin, hyzer, nose angle and more.
+          </p>
+          <div class="cta">
+            <a class="btn" href="./lab/">Open the flight lab</a>
+            <a class="btn ghost" href="https://github.com/hrafnkell/discyboi">Source on GitHub</a>
+          </div>
+          <p class="fine">The lab also works without a disc: enter a throw by hand and watch it fly.</p>
+        </div>
+        <figure class="hero-img">
+          <img src="/img/on-disc.jpg" width="1800" height="1013" alt="The discyboi case mounted under the centre of a red disc" />
+        </figure>
+      </section>
+
+      <section id="measures">
+        <h2>What it measures</h2>
+        <p class="section-lead">Everything is measured on the disc during the throw. No camera, no radar, no net sensors.</p>
+        <div class="grid six">
+          <article class="card">
+            <h3>Speed</h3>
+            <p>How fast the disc leaves your hand, in m/s, km/h or mph.</p>
+          </article>
+          <article class="card">
+            <h3>Spin</h3>
+            <p>Revolutions per minute at release. A second sensor off-centre keeps reading where a gyro alone tops out, around 670&nbsp;rpm.</p>
+          </article>
+          <article class="card">
+            <h3>Hyzer</h3>
+            <p>How far the disc is tilted sideways at release, hyzer or anhyzer.</p>
+          </article>
+          <article class="card">
+            <h3>Nose angle</h3>
+            <p>Whether the nose points up or down, and by how much, compared with the flight path.</p>
+          </article>
+          <article class="card">
+            <h3>Launch angle</h3>
+            <p>How steeply the disc is thrown upwards.</p>
+          </article>
+          <article class="card">
+            <h3>Wobble</h3>
+            <p>Off-axis flutter just after release: lower means a cleaner snap.</p>
+          </article>
+        </div>
+        <p class="fine">Forehand or backhand is told apart by the spin direction.</p>
+      </section>
+
+      <section id="how">
+        <h2>How it works</h2>
+        <div class="steps">
+          <article class="step">
+            <img src="/img/board.jpg" width="1400" height="788" loading="lazy" alt="The assembled discyboi circuit board" />
+            <div>
+              <span class="num">1</span>
+              <h3>A small board with two motion sensors</h3>
+              <p>
+                A Bluetooth module (nRF54L15) and two motion sensors, one on the spin axis and one 9&nbsp;mm out. They are
+                read 960 times a second and handle up to 320&nbsp;g. A CR2032 coin cell powers it.
+              </p>
+            </div>
+          </article>
+          <article class="step">
+            <img src="/img/jig.jpg" width="1400" height="788" loading="lazy" alt="A printed three-armed jig centring the case under a disc" />
+            <div>
+              <span class="num">2</span>
+              <h3>A printed case under the flight plate</h3>
+              <p>
+                The case is 9.6&nbsp;mm tall and sticks on with tape. A printed jig centres it on the disc's injection mark,
+                so the sensor sits on the spin axis. Board, cell and case add about 12–14&nbsp;g.
+              </p>
+            </div>
+          </article>
+          <article class="step">
+            <img src="/img/flight-lab.jpg" width="1597" height="1073" loading="lazy" alt="The flight lab showing a simulated throw from above" />
+            <div>
+              <span class="num">3</span>
+              <h3>Your browser does the rest</h3>
+              <p>
+                Connect from Chrome or Edge on a laptop or Android phone; there is no app to install. Each throw arrives a
+                moment after release and is simulated as a full flight for the disc you pick.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="lab">
+        <h2>The lab</h2>
+        <p class="section-lead">Two pages: one to see a single throw fly, one to work on your form over a session.</p>
+        <div class="shots">
+          <figure class="shot wide">
+            <img src="/img/throws.jpg" width="1538" height="1074" loading="lazy" alt="The throws page with a session's numbers, a trend chart and a list of throws" />
+            <figcaption><strong>Throws.</strong> Every throw of a session with trends, targets, backhand and forehand filters, and side-by-side comparison.</figcaption>
+          </figure>
+          <figure class="shot phone">
+            <img src="/img/phone.jpg" width="720" height="1250" loading="lazy" alt="The throws page on a phone showing the latest throw" />
+            <figcaption><strong>On your phone.</strong> Big numbers for the latest throw, read out loud if you like.</figcaption>
+          </figure>
+        </div>
+        <div class="cta center">
+          <a class="btn" href="./lab/">Open the flight lab</a>
+          <a class="btn ghost" href="./lab/throws.html">Go to throws</a>
+        </div>
+      </section>
+
+      <section id="build">
+        <h2>Build one</h2>
+        <p class="section-lead">Everything needed to make one is in the repository.</p>
+        <div class="build">
+          <ul class="list">
+            <li><strong>Board:</strong> KiCad project, gerbers and a parts list ready to order.</li>
+            <li><strong>Case:</strong> OpenSCAD source and printable files for the case and the centring jig.</li>
+            <li><strong>Firmware:</strong> Zephyr, built in Docker, updated from the browser over Bluetooth.</li>
+            <li><strong>Web app:</strong> TypeScript and three.js, with a small server for accounts and sync.</li>
+          </ul>
+          <div class="thumbs">
+            <img src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
+            <img src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
+          </div>
+        </div>
+        <div class="cta">
+          <a class="btn ghost" href="https://github.com/hrafnkell/discyboi">github.com/hrafnkell/discyboi</a>
+        </div>
+        <aside class="note">
+          <strong>A hobby project, still being tuned.</strong> The angles have not yet been checked against a camera, so treat
+          them as a guide. A disc carrying the tracker is not PDGA legal.
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      <span><span class="logo"></span>discyboi</span>
+      <a href="./lab/">Flight lab</a>
+      <a href="./lab/throws.html">Throws</a>
+      <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
+    </footer>
   </body>
 </html>

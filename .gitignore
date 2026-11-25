@@ -19,3 +19,5 @@ keys/
 firmware/app/src/build_id.h
 # local notes
 NOTES.md
+# original photos (they carry GPS coordinates); resized, metadata-free copies are in web/public/img/
+/img/

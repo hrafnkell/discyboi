@@ -305,11 +305,15 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
   return err(404, 'Not found');
 }
 
-async function staticFile(path: string, root = DIST): Promise<Response> {
+const redirect = (to: string) => new Response(null, { status: 308, headers: { Location: to, ...SEC_HEADERS } });
+
+async function staticFile(path: string, root = DIST, search = ''): Promise<Response> {
   if (!existsSync(root)) return new Response(root === DIST ? 'Not found (run `bun run build`, or use the Vite dev server)' : 'Not found', { status: 404 });
   const rel = normalize(decodeURIComponent(path)).replace(/^(\.\.[/\\])+/, '');
   let file = resolve(root, '.' + (rel.endsWith('/') ? rel + 'index.html' : rel));
   if (file !== root && !file.startsWith(root + '/')) return new Response('Not found', { status: 404 });
+  // A folder without its trailing slash: relative links in its index page would resolve one level up.
+  if (!rel.endsWith('/') && existsSync(join(file, 'index.html'))) return redirect(rel + '/' + search);
   let f = Bun.file(file);
   if (!(await f.exists()) && (await Bun.file(file + '.html').exists())) f = Bun.file((file += '.html'));
   if (!(await f.exists())) return new Response('Not found', { status: 404 });
@@ -322,12 +326,15 @@ const server = Bun.serve({
   hostname: env.HOST ?? '0.0.0.0',
   maxRequestBodySize: 8 * 1024 * 1024,
   async fetch(req, srv) {
-    const path = new URL(req.url).pathname;
+    const url = new URL(req.url), path = url.pathname;
     try {
       if (path.startsWith('/api/')) return await api(req, srv, path);
       if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
       if (path.startsWith('/firmware/')) return await staticFile(path.slice('/firmware'.length), FIRMWARE);
-      return await staticFile(path);
+      // The app moved from / to /lab/ when the landing page arrived: keep old links and bookmarks working.
+      if (path === '/throws' || path === '/throws.html') return redirect(`/lab/throws.html${url.search}`);
+      if ((path === '/' || path === '/index.html') && (url.searchParams.has('throw') || url.searchParams.has('fake'))) return redirect(`/lab/${url.search}`);
+      return await staticFile(path, DIST, url.search);
     } catch (e) {
       console.error(e);
       return err(500, 'Server error');

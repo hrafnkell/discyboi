@@ -1,5 +1,9 @@
 # discyboi
 
+**[discyboi.com](https://discyboi.com)** · [flight lab](https://discyboi.com/lab/)
+
+![The discyboi case under the centre of a disc](web/public/img/on-disc.jpg)
+
 A flight tracker that mounts on a disc golf disc and reports each throw over Bluetooth. The goal is enough sensor data for reliable flight prediction:
 
 - release detection and release speed
@@ -10,6 +14,8 @@ A flight tracker that mounts on a disc golf disc and reports each throw over Blu
 The hardware is a small round PCB built around an nRF54L15 BLE SoC and IMUs read over SPI. It runs from a CR2032 coin cell and mounts in a small screw-on case under the flight plate, or can be sealed (potted or conformal-coated) into the disc.
 
 ## Hardware
+
+<img src="web/public/img/board.jpg" width="49%" alt="The assembled v4 board"> <img src="web/public/img/jig.jpg" width="49%" alt="Centring jig on a disc">
 
 The current board is **[v4](v4/)**: Ø34 mm, a Fanstel BC15M module (nRF54L15, PCB antenna), and 2 × LSM6DSV320X (one at the centre, one at r = 9 mm). It runs from a CR2032 in a clip on the back, through an MCP1700 3.0 V regulator. The LiPo charger is on the board but not fitted (LIR2032 option). Gerbers and BOMs are in `v4/jlcpcb/`.
 
@@ -26,7 +32,7 @@ v4/gen/                Python generators for v4's schematic, footprints and PCB 
 v4/jlcpcb/             fabrication outputs (gerbers, BOM, CPL)
 v4/enclosure/          OpenSCAD case (base + screw-on battery lid), STLs, centring jig
 firmware/              Zephyr firmware for the v4 board
-web/                   three.js flight lab: flight simulator, Web Bluetooth client, throw history
+web/                   discyboi.com: landing page, and the three.js flight lab (simulator, Web Bluetooth client, throw history)
 ```
 
 ## Tools
@@ -48,4 +54,6 @@ See the [firmware README](firmware/README.md) for the BLE protocol and the bring
 
 ## Web
 
-[`web/`](web/) is a browser app (Vite + TypeScript + three.js, run with bun). It simulates disc flights from speed, spin, hyzer, nose and launch angle plus a disc's flight numbers, and animates them in 3D. It receives throws from the disc over Web Bluetooth (or from a fake disc with `?fake=1`) and keeps a throw history. See the [web README](web/README.md).
+<img src="web/public/img/flight-lab.jpg" width="49%" alt="Flight lab"> <img src="web/public/img/throws.jpg" width="49%" alt="Throws page">
+
+[`web/`](web/) is a browser app (Vite + TypeScript + three.js, run with bun). It simulates disc flights from speed, spin, hyzer, nose and launch angle plus a disc's flight numbers, and animates them in 3D. It receives throws from the disc over Web Bluetooth (or from a fake disc with `?fake=1`) and keeps a throw history. It runs at [discyboi.com](https://discyboi.com): a landing page at `/` and the app under `/lab/`. See the [web README](web/README.md).

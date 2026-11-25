@@ -129,7 +129,7 @@ const labLink = h('a.ghostbtn.navlink', { href: `./index.html${fake ? '?fake=1' 
 
 document.body.classList.add('page');
 document.body.append(
-  h('header.topbar', {}, h('div.brand', {}, h('span.logo'), 'discyboi', h('small', {}, fake ? 'throws · fake disc' : 'throws')), labLink, h('div.spacer'), device.el, account.el),
+  h('header.topbar', {}, h('a.brand', { href: '../', title: 'About discyboi' }, h('span.logo'), 'discyboi', h('small', {}, fake ? 'throws · fake disc' : 'throws')), labLink, h('div.spacer'), device.el, account.el),
   toasts,
 );
 const wrap = h('main.wrap');

@@ -5,10 +5,12 @@ A three.js app that simulates and animates disc golf flights. You can enter the 
 ```sh
 bun install
 bun run server   # accounts + throw history API on :8787 (optional; SQLite in data/)
-bun run dev      # http://localhost:5173        (?fake=1 for a simulated disc; proxies /api to :8787)
+bun run dev      # http://localhost:5173/lab/   (?fake=1 for a simulated disc; proxies /api to :8787)
 bun test         # protocol, conversion and flight-model tests
 bun run build    # type-check + production build in dist/
 ```
+
+**Pages:** `/` is the landing page (`index.html` + `src/landing.css`, no script; its images are in `public/img/`). The app is under `/lab/`: the flight lab at `/lab/` and the throws page at `/lab/throws.html`. The server redirects the old `/throws.html` and `/?throw=…` links there. It is deployed at [discyboi.com](https://discyboi.com).
 
 The dev server listens on all interfaces, so you can open it from another device at `http://<this machine's IP>:5173`. Vite prints the network URLs on startup.
 
@@ -39,7 +41,7 @@ Web Bluetooth only works in **Chrome or Edge**, on desktop or Android, over http
   - Set the board mount (face up or face down in the disc). It flips the spin direction.
   - The thrower's hand comes from the Release panel. Backhand vs forehand is inferred from the spin direction.
 
-## Throws page (`throws.html`)
+## Throws page (`lab/throws.html`)
 
 A separate page for reviewing throws, reached from **Throws →** in the flight lab's top bar. It doesn't need WebGL, so it also works on phones. It suits field work, where the release numbers matter more than the 3D flight.
 

@@ -121,7 +121,7 @@ const leftToggle = h('button.paneltoggle.left', { type: 'button', 'aria-label': 
 const rightToggle = h('button.paneltoggle.right', { type: 'button', 'aria-label': 'Toggle history', onclick: () => document.body.classList.toggle('hide-right') }, '⟲');
 
 document.body.append(
-  h('header.topbar', {}, leftToggle, h('div.brand', {}, h('span.logo'), 'discyboi', h('small', {}, fake ? 'flight lab · fake disc' : 'flight lab')),
+  h('header.topbar', {}, leftToggle, h('a.brand', { href: '../', title: 'About discyboi' }, h('span.logo'), 'discyboi', h('small', {}, fake ? 'flight lab · fake disc' : 'flight lab')),
     h('a.ghostbtn.navlink', { href: `./throws.html${fake ? '?fake=1' : ''}`, title: 'Throw history, stats and compare' }, 'Throws →'), camSeg.el, device.el, account.el, rightToggle),
   h('aside.panel.leftpanel', {}, picker.el, panel.el),
   h('aside.panel.rightpanel', {}, history.el, settingsCard),
