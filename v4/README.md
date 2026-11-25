@@ -212,3 +212,9 @@ Set `ROUTER=grid` to use the built-in grid router instead of Freerouting.
 - Configure SPIM00 on P2.01/P2.02/P2.04, with chip selects on P2.06 (U5) and P2.05 (U3).
 - To measure the battery, read AIN2 and multiply by 2.
 - Battery level: the firmware detects coin cell vs LiPo from VBAT (`CONFIG_DISCY_BATTERY_AUTO`, default), or force it with `CONFIG_DISCY_BATTERY_COIN` / `CONFIG_DISCY_BATTERY_LIPO`.
+
+## Licence
+
+The v4 hardware (schematic, PCB, generators in `gen/`, fabrication files in `jlcpcb/` and the enclosure in `enclosure/`) is licensed under the [CERN Open Hardware Licence v2, strongly reciprocal](../LICENSES/CERN-OHL-S-2.0.txt) (CERN-OHL-S-2.0). See [LICENSE.md](../LICENSE.md).
+
+Source location: https://github.com/hrafnkell/discyboi

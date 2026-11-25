@@ -57,3 +57,7 @@ See the [firmware README](firmware/README.md) for the BLE protocol and the bring
 <img src="web/public/img/flight-lab.jpg" width="49%" alt="Flight lab"> <img src="web/public/img/throws.jpg" width="49%" alt="Throws page">
 
 [`web/`](web/) is a browser app (Vite + TypeScript + three.js, run with bun). It simulates disc flights from speed, spin, hyzer, nose and launch angle plus a disc's flight numbers, and animates them in 3D. It receives throws from the disc over Web Bluetooth (or from a fake disc with `?fake=1`) and keeps a throw history. It runs at [discyboi.com](https://discyboi.com): a landing page at `/` and the app under `/lab/`. See the [web README](web/README.md).
+
+## Licence
+
+Open source and open hardware: CERN-OHL-S-2.0 for the hardware, GPL-3.0 for the firmware, AGPL-3.0 for the web app, and CC-BY-SA-4.0 for the photos. Build your own freely; if you share or sell something based on it, credit this project and publish your changes under the same licence. The name "discyboi" is not included. See [LICENSE.md](LICENSE.md).
