@@ -118,7 +118,7 @@
               <h3>Your browser does the rest</h3>
               <p>
                 Connect from Chrome or Edge on a laptop, desktop or Android phone; there is no app to install. Each throw arrives a
-                moment after release and is simulated as a full flight for the disc you pick.
+                moment after release and is simulated as a full flight for the disc you pick. iOS might work with Bluefy or WebBLE but has not been tested.
               </p>
             </div>
           </article>
@@ -193,11 +193,34 @@
             mounting hardware (screws and VHB tape).
           </p>
           <p>
-            Nothing is for sale yet, and getting in touch doesn't commit you to anything, but please only write if you're
+            Nothing is for sale yet, and signing up doesn't commit you to anything, but please only sign up if you're
             seriously interested.
           </p>
-          <a class="btn" href="mailto:info@discyboi.com?subject=discyboi%20board">Get in touch</a>
+          <form class="interest-form" id="interest" novalidate>
+            <div class="row">
+              <label>Name <input name="name" autocomplete="name" maxlength="100" required /></label>
+              <label>Email <input name="email" type="email" autocomplete="email" maxlength="254" required /></label>
+            </div>
+            <fieldset>
+              <legend>I'd want</legend>
+              <label class="choice"><input type="radio" name="wants" value="board" checked /> The board (about US$70)</label>
+              <label class="choice"><input type="radio" name="wants" value="kit" /> Board + printed case and hardware (about US$80)</label>
+            </fieldset>
+            <label><span>Anything else? <span class="opt">(optional)</span></span><textarea name="note" rows="2" maxlength="1000" placeholder="Where you are, how many, questions…"></textarea></label>
+            <!-- Left empty by people; bots fill it in. -->
+            <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+            <div class="actions">
+              <button class="btn" type="submit">Count me in</button>
+              <p class="status" role="status" aria-live="polite"></p>
+            </div>
+            <p class="fine">
+              Your name and email are only used to contact you about boards, and are never shared. Email
+              <a href="mailto:info@discyboi.com">info@discyboi.com</a> to be taken off the list.
+            </p>
+            <noscript><p class="fine">The form needs JavaScript. You can also email <a href="mailto:info@discyboi.com">info@discyboi.com</a>.</p></noscript>
+          </form>
         </aside>
+        <p class="contact">Questions, ideas or found a bug? Email <a href="mailto:info@discyboi.com">info@discyboi.com</a>.</p>
       </section>
     </main>
 
@@ -207,6 +230,7 @@
       <a href="./lab/throws.html">Throws</a>
       <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
       <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Open source licence</a>
+      <a href="mailto:info@discyboi.com">info@discyboi.com</a>
     </footer>
     <dialog class="lightbox" aria-label="Image viewer">
       <img alt="" />

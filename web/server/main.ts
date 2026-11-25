@@ -98,6 +98,25 @@ setInterval(() => {
   for (const [k, v] of failures) if (v.every((t) => now - t >= WINDOW)) failures.delete(k);
 }, WINDOW);
 
+/** Interest sign-ups: at most this many per IP per hour, and this many stored in all. */
+const INTEREST_PER_HOUR = 5;
+const MAX_INTEREST = Number(env.DISCYBOI_MAX_INTEREST ?? 2000);
+const signups = new Map<string, number[]>();
+function signupLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (signups.get(ip) ?? []).filter((t) => now - t < 3600e3);
+  if (recent.length >= INTEREST_PER_HOUR) return true;
+  signups.set(ip, [...recent, now]);
+  return false;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of signups) if (v.every((t) => now - t >= 3600e3)) signups.delete(k);
+}, 3600e3);
+// Deliberately loose: one @, a dot in the domain, no spaces. The real check is writing to it.
+const EMAIL = /^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/;
+const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max) : '');
+
 const USERNAME = /^[A-Za-z0-9_.-]{3,32}$/;
 const THROW_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -174,6 +193,24 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
 
   if (path === '/api/me' && method === 'GET') {
     return json({ user: user ?? null, signup: SIGNUP_OPEN, maxThrows: MAX_THROWS, count: user ? db.countThrows(user.id) : 0 });
+  }
+
+  // "Want a board?" form on the landing page. No account needed.
+  if (path === '/api/interest' && method === 'POST') {
+    const b = await body<Record<string, unknown>>(req);
+    if (!b) return err(400, 'Bad request');
+    if (clean(b.website, 200)) return json({ ok: true }); // honeypot: only bots fill the hidden field
+    const name = clean(b.name, 100), email = clean(b.email, 254).toLowerCase(), note = clean(b.note, 1000);
+    const wants = b.wants === 'kit' ? 'kit' : b.wants === 'board' ? 'board' : '';
+    if (!name) return err(400, 'Please enter your name');
+    if (!EMAIL.test(email)) return err(400, 'Please enter a valid email address');
+    if (!wants) return err(400, 'Please choose board or board + case');
+    if (signupLimited(clientIp(req, server))) return err(429, 'Too many sign-ups from here. Try again in an hour.');
+    if (db.countInterest() >= MAX_INTEREST) return err(503, 'The list is full for now. Please email info@discyboi.com instead.');
+    const added = db.addInterest({ email, name, wants, note });
+    console.log(`interest: ${added ? 'new' : 'updated'} sign-up (${wants})`);
+    // Same answer either way, so the form can't be used to find out who is on the list.
+    return json({ ok: true });
   }
 
   if ((path === '/api/login' || path === '/api/signup') && method === 'POST') {

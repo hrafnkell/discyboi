@@ -14,6 +14,15 @@ export interface StoredThrow {
 
 const sha256 = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex');
 
+export interface Interest {
+  email: string;
+  name: string;
+  wants: string;
+  note: string;
+  created: number;
+  updated: number;
+}
+
 export class Db {
   readonly sql: Database;
 
@@ -49,6 +58,14 @@ export class Db {
         created INTEGER NOT NULL,
         data BLOB NOT NULL,
         PRIMARY KEY (user_id, id)
+      );
+      CREATE TABLE IF NOT EXISTS interest (   -- "want a board?" sign-ups from the landing page, one per email
+        email TEXT PRIMARY KEY COLLATE NOCASE,
+        name TEXT NOT NULL,
+        wants TEXT NOT NULL,                  -- 'board' or 'kit' (board + printed case and hardware)
+        note TEXT NOT NULL DEFAULT '',
+        created INTEGER NOT NULL,
+        updated INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS prefs (      -- small per-account settings shared by all devices
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -158,6 +175,29 @@ export class Db {
 
   getCapture(userId: number, id: string): Uint8Array | undefined {
     return this.sql.query<{ data: Uint8Array }, [number, string]>('SELECT data FROM captures WHERE user_id = ? AND id = ?').get(userId, id)?.data;
+  }
+
+  // ---------------------------------------------------------- interest
+  /** Adds a sign-up, or updates the one with the same email. Returns whether it was new. */
+  addInterest(i: { email: string; name: string; wants: string; note: string }): boolean {
+    const now = Date.now();
+    const had = this.sql.query('SELECT 1 FROM interest WHERE email = ?').get(i.email);
+    this.sql
+      .query('INSERT INTO interest (email, name, wants, note, created, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, wants = excluded.wants, note = excluded.note, updated = excluded.updated')
+      .run(i.email, i.name, i.wants, i.note, now, now);
+    return !had;
+  }
+
+  listInterest(): Interest[] {
+    return this.sql.query<Interest, []>('SELECT email, name, wants, note, created, updated FROM interest ORDER BY created').all();
+  }
+
+  deleteInterest(email: string): boolean {
+    return this.sql.query('DELETE FROM interest WHERE email = ?').run(email).changes > 0;
+  }
+
+  countInterest(): number {
+    return this.sql.query<{ n: number }, []>('SELECT COUNT(*) AS n FROM interest').get()!.n;
   }
 
   // ------------------------------------------------------------- prefs

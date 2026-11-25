@@ -115,7 +115,6 @@ section { padding: 36px 0 4px; }
 }
 .interest h3 { font-size: 1.3rem; margin-bottom: 10px; }
 .interest p { color: #c5d0db; margin-bottom: 14px; }
-.interest p:last-of-type { margin-bottom: 22px; }
 .interest strong { color: var(--text); }
 
 footer {
@@ -125,6 +124,32 @@ footer {
 footer > span { color: var(--text); font-weight: 700; margin-right: auto; }
 footer a { text-decoration: none; }
 footer a:hover { color: var(--text); }
+
+/* ---- interest form */
+.interest-form { display: grid; gap: 14px; margin-top: 8px; }
+.interest-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.interest-form label { display: grid; gap: 6px; font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+.interest-form input:not([type='radio']), .interest-form textarea {
+  font: inherit; font-weight: 400; color: var(--text); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+.interest-form textarea { resize: vertical; min-height: 64px; }
+.interest-form input:focus, .interest-form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+.interest-form fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.interest-form legend { font-size: 0.92rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; padding: 0; }
+.interest-form label.choice { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 400; font-size: 1rem; cursor: pointer; }
+.interest-form input[type='radio'] { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
+.interest-form .opt { font-weight: 400; }
+.interest-form .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.interest-form .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.interest-form button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+.interest-form button:disabled { opacity: 0.6; cursor: default; transform: none; }
+.interest-form .status { color: var(--muted); }
+.interest-form .status.ok { color: #52d39a; font-weight: 600; }
+.interest-form .status.err { color: #ff8a8a; }
+.interest-form .fine { margin-top: 0; }
+.interest-form .fine a, .contact a { color: var(--accent); }
+.contact { margin-top: 20px; color: #c5d0db; }
+.interest { position: relative; }
 
 /* ---- lightbox */
 main img[data-full] { cursor: zoom-in; }
@@ -156,6 +181,8 @@ main img[data-full] { cursor: zoom-in; }
   .step, .build { grid-template-columns: 1fr; gap: 18px; }
   .step:nth-child(even) img { order: 0; }
   .shots { grid-template-columns: 1fr; }
+  .interest-form .row { grid-template-columns: 1fr; }
+  .interest { padding: 22px 18px; }
   .shot.phone { max-width: 300px; margin: 0 auto; }
 }
 @media (max-width: 480px) {

@@ -48,3 +48,33 @@ box.addEventListener('touchend', (e) => {
   if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
 });
 box.addEventListener('close', () => big.removeAttribute('src'));
+
+// ---------------------------------------------------------------- "want a board?" form
+const form = document.querySelector<HTMLFormElement>('form.interest-form');
+if (form) {
+  const status = form.querySelector<HTMLElement>('.status')!;
+  const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+  const say = (msg: string, kind?: 'ok' | 'err') => {
+    status.textContent = msg;
+    status.className = kind ? `status ${kind}` : 'status';
+  };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    if (!d.name?.trim()) return say('Please enter your name.', 'err');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(d.email?.trim() ?? '')) return say('Please enter a valid email address.', 'err');
+    btn.disabled = true;
+    say('Sending…');
+    try {
+      const res = await fetch('/api/interest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+      const r = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !r.ok) throw new Error(r.error ?? `Something went wrong (${res.status}).`);
+      form.reset();
+      say("Thanks! You're on the list. I'll be in touch if boards get made.", 'ok');
+    } catch (err) {
+      say(err instanceof Error && !/fetch|network/i.test(err.message) ? err.message : "Couldn't send. Check your connection, or email info@discyboi.com.", 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
