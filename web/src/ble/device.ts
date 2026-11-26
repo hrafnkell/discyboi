@@ -60,6 +60,7 @@ export class BleDisc implements DiscDevice {
   private data?: BluetoothRemoteGATTCharacteristic;
   private downloading = false;
   private updating = false;
+  private retrying = false;
   private smp?: SmpClient;
   private lastThrowId = -1;
   /** Anonymous board id for the board count (firmware 0.4.2+). */
@@ -74,9 +75,33 @@ export class BleDisc implements DiscDevice {
     this.name = device.name ?? DEVICE_NAME;
     device.addEventListener('gattserverdisconnected', () => {
       this.smp?.close('Disconnected during the update');
-      if (!this.updating) this.onDisconnect?.(); // during an update the restart is expected
+      // During an update the restart is expected; while retrying a connect, the drop is ours.
+      if (!this.updating && !this.retrying) this.onDisconnect?.();
     });
-    await this.setup(device);
+    await this.setupWithRetry(device);
+  }
+
+  /**
+   * Android often fails the first connect or the service discovery right after it (GATT error
+   * 133 and friends), and works on the next try. Retry quietly a few times before giving up.
+   */
+  private async setupWithRetry(device: BluetoothDevice, tries = 3) {
+    this.retrying = true;
+    try {
+      for (let i = 1; ; i++) {
+        try {
+          await this.setup(device);
+          return;
+        } catch (e) {
+          if (i >= tries) throw e;
+          console.warn(`connect attempt ${i} failed, retrying`, e);
+          if (device.gatt?.connected) device.gatt.disconnect();
+          await sleep(500 * i);
+        }
+      }
+    } finally {
+      this.retrying = false;
+    }
   }
 
   /** Connects and subscribes. Also used to come back after a firmware update. */
@@ -198,8 +223,18 @@ export class BleDisc implements DiscDevice {
     if (this.updating || this.downloading) throw new Error('The disc is busy');
     this.updating = true;
     try {
-      const svc = await device.gatt.getPrimaryService(SMP_SERVICE_UUID);
-      const ch = await svc.getCharacteristic(SMP_CHAR_UUID);
+      // Opening the update service can hit the same Android hiccup as connecting: reconnect and retry.
+      let ch: BluetoothRemoteGATTCharacteristic | undefined;
+      for (let i = 1; !ch; i++) {
+        try {
+          if (!device.gatt.connected) await this.setupWithRetry(device);
+          ch = await (await device.gatt.getPrimaryService(SMP_SERVICE_UUID)).getCharacteristic(SMP_CHAR_UUID);
+        } catch (e) {
+          if (i >= 3) throw e;
+          console.warn(`opening the update service failed (attempt ${i}), retrying`, e);
+          await sleep(500 * i);
+        }
+      }
       const transport: SmpTransport = { write: (d) => ch.writeValueWithoutResponse(d as BufferSource) };
       const smp = (this.smp = new SmpClient(transport));
       ch.addEventListener('characteristicvaluechanged', () => {

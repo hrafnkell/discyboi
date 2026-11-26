@@ -318,6 +318,22 @@ static void adv_work_handler(struct k_work *work)
 }
 static K_WORK_DEFINE(adv_work, adv_work_handler);
 
+/* Ask for long packets and the 2M PHY a moment after connecting, not straight away: right after
+ * connecting, Android is exchanging MTU and discovering services (and often asks for the same
+ * itself), and some Android stacks drop the link when these procedures overlap. */
+static void link_upgrade_fn(struct k_work *w)
+{
+	struct bt_conn *conn = current ? bt_conn_ref(current) : NULL;
+
+	if (!conn) {
+		return;
+	}
+	bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
+	bt_conn_le_phy_update(conn, BT_CONN_LE_PHY_PARAM_2M);
+	bt_conn_unref(conn);
+}
+static K_WORK_DELAYABLE_DEFINE(link_upgrade, link_upgrade_fn);
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err) {
@@ -325,13 +341,13 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 	current = bt_conn_ref(conn);
 	LOG_INF("connected");
-	bt_conn_le_data_len_update(conn, BT_LE_DATA_LEN_PARAM_MAX);
-	bt_conn_le_phy_update(conn, BT_CONN_LE_PHY_PARAM_2M);
+	k_work_reschedule(&link_upgrade, K_MSEC(1500));
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	LOG_INF("disconnected (0x%02x)", reason);
+	k_work_cancel_delayable(&link_upgrade);
 	atomic_set(&abort_dl, 1);
 	if (current) {
 		bt_conn_unref(current);
