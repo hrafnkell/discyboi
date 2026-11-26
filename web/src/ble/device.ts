@@ -7,6 +7,7 @@ import {
   CTRL_IDENTIFY,
   DEVICE_NAME,
   INFO_UUID,
+  BOARD_UUID,
   parseStatus,
   parseThrowResult,
   SERVICE_UUID,
@@ -15,6 +16,7 @@ import {
   type DeviceStatus,
   type ThrowResult,
 } from './protocol';
+import { boardId, reportBoard } from './census';
 import { sendFirmware, SMP_CHAR_UUID, SMP_SERVICE_UUID, SmpClient, type SmpTransport } from './smp';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -60,6 +62,8 @@ export class BleDisc implements DiscDevice {
   private updating = false;
   private smp?: SmpClient;
   private lastThrowId = -1;
+  /** Anonymous board id for the board count (firmware 0.4.2+). */
+  private boardId?: string;
 
   async connect() {
     const device = await navigator.bluetooth.requestDevice({
@@ -118,6 +122,15 @@ export class BleDisc implements DiscDevice {
       /* firmware before 0.2.0 has no Info characteristic */
     }
 
+    this.boardId = undefined;
+    try {
+      const bc = await svc.getCharacteristic(BOARD_UUID);
+      this.boardId = await boardId(await bc.readValue());
+      if (this.boardId) reportBoard(this.boardId, this.firmware);
+    } catch {
+      /* firmware before 0.4.2 has no board id */
+    }
+
     try {
       const bs = await server.getPrimaryService('battery_service');
       const lvl = await bs.getCharacteristic('battery_level');
@@ -133,6 +146,7 @@ export class BleDisc implements DiscDevice {
     const r = parseThrowResult(v);
     if (r.throwId === 0 || r.throwId === this.lastThrowId) return; // 0: nothing thrown since boot
     this.lastThrowId = r.throwId;
+    if (this.boardId) reportBoard(this.boardId, this.firmware, r.throwId);
     this.onThrow?.(r);
   }
 

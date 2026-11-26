@@ -37,7 +37,7 @@ The STLs are for a **1.0 mm** board (`pcb_t = 1.0`). For a different thickness, 
 - **Settings:** 0.2 mm layers (0.12 mm improves the LED windows), 4 perimeters, 100 % infill. The parts are small, so they end up nearly solid anyway.
 - **Orientation:** the base goes disc face down. The lid goes **flat underside down, dome up**. The STLs are already laid out that way. Neither needs supports; the clip recess's ceiling is a short bridge.
 - **Screws:** 3 × **M2 × 6 mm countersunk** (rev 1 used 8 mm, which would now go through the floor). They self-tap about 3.4 mm into the 1.7 mm pilot holes in the base. Drive them gently; PETG strips easily.
-- **Mass:** about 7 g of plastic if printed solid, because the domed lid is mostly solid (rev 1 was about 6 g). 40 % infill brings it back to about 5 g. With the board (~3 g) and a CR2032 (~3 g) the total is about 12–14 g, compared with ~175 g for a disc. That's fine for practice, but a disc carrying it isn't PDGA legal.
+- **Mass:** weighed, the printed case with the board and a CR2032 fitted comes to **about 10 g**, compared with ~175 g for a disc. The cell alone is about 3 g. That's fine for practice, but a disc carrying it isn't PDGA legal.
 
 ## Rev 1 (flat lid)
 

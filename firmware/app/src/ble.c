@@ -17,6 +17,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 
+#include <zephyr/drivers/hwinfo.h>
+
 #include "discy.h"
 
 LOG_MODULE_REGISTER(ble, LOG_LEVEL_INF);
@@ -29,6 +31,7 @@ static const struct bt_uuid_128 uuid_status = BT_UUID_INIT_128(UUID_DISCY(3));
 static const struct bt_uuid_128 uuid_ctrl = BT_UUID_INIT_128(UUID_DISCY(4));
 static const struct bt_uuid_128 uuid_data = BT_UUID_INIT_128(UUID_DISCY(5));
 static const struct bt_uuid_128 uuid_info = BT_UUID_INIT_128(UUID_DISCY(6));
+static const struct bt_uuid_128 uuid_board = BT_UUID_INIT_128(UUID_DISCY(7));
 
 /* build.sh writes build_id.h with the git commit the image was built from. */
 #if __has_include("build_id.h")
@@ -43,6 +46,20 @@ static ssize_t read_info(struct bt_conn *conn, const struct bt_gatt_attr *attr, 
 {
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, discy_fw_version,
 				 sizeof(discy_fw_version) - 1);
+}
+
+/* The chip's factory-unique ID (8 bytes), so the lab can tell boards apart. The lab hashes it
+ * before it goes anywhere. */
+static ssize_t read_board_id(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+			     uint16_t len, uint16_t offset)
+{
+	uint8_t id[8] = {0};
+	ssize_t n = hwinfo_get_device_id(id, sizeof(id));
+
+	if (n < 0) {
+		n = 0;
+	}
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, id, (uint16_t)n);
 }
 
 enum ctrl_op {
@@ -156,6 +173,8 @@ BT_GATT_SERVICE_DEFINE(discy_svc,
 	/* New characteristics go at the end: the ATTR_ indices below must not move. */
 	BT_GATT_CHARACTERISTIC(&uuid_info.uuid, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_info, NULL,
 			       NULL),
+	BT_GATT_CHARACTERISTIC(&uuid_board.uuid, BT_GATT_CHRC_READ, BT_GATT_PERM_READ, read_board_id,
+			       NULL, NULL),
 );
 
 /* Attribute indices in discy_svc.attrs */

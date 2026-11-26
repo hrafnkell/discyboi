@@ -163,6 +163,7 @@ The device advertises as `discyboi` (connectable, ~0.5 s interval) with the stan
 | Control | `6d2b0004-…` | write | `0x01` download the last capture, `0x02` abort the download, `0x10` blink the LED to identify the disc |
 | Data | `6d2b0005-…` | notify | Raw capture download |
 | Info | `6d2b0006-…` | read | Firmware version as text, `0.2.0+<git commit>` (`-dirty` if built from uncommitted changes) |
+| Board | `6d2b0007-…` | read | The chip's factory-unique ID, 8 bytes (0.4.2+). The lab hashes it into an anonymous id for the board count |
 
 **Throw result**
 

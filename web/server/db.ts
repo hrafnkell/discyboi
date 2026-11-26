@@ -14,6 +14,15 @@ export interface StoredThrow {
 
 const sha256 = (s: string) => new Bun.CryptoHasher('sha256').update(s).digest('hex');
 
+export interface Board {
+  id: string;
+  first_seen: number;
+  last_seen: number;
+  fw: string;
+  connects: number;
+  throws: number;
+}
+
 export interface Interest {
   email: string;
   name: string;
@@ -66,6 +75,15 @@ export class Db {
         note TEXT NOT NULL DEFAULT '',
         created INTEGER NOT NULL,
         updated INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS boards (     -- one row per physical board seen by the lab (anonymous)
+        id TEXT PRIMARY KEY,                  -- hash of the chip's factory ID, made in the browser
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        fw TEXT NOT NULL DEFAULT '',          -- firmware version at the last connect
+        connects INTEGER NOT NULL DEFAULT 0,
+        throws INTEGER NOT NULL DEFAULT 0,
+        last_throw INTEGER NOT NULL DEFAULT 0 -- the board's own throw counter, so a re-sent throw isn't counted twice
       );
       CREATE TABLE IF NOT EXISTS prefs (      -- small per-account settings shared by all devices
         user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -198,6 +216,32 @@ export class Db {
 
   countInterest(): number {
     return this.sql.query<{ n: number }, []>('SELECT COUNT(*) AS n FROM interest').get()!.n;
+  }
+
+  // ------------------------------------------------------------ boards
+  /** Records a connect (throwId undefined) or a throw from a board. Returns whether the board is new. */
+  seeBoard(id: string, fw: string, throwId?: number): boolean {
+    const now = Date.now();
+    const had = this.sql.query('SELECT 1 FROM boards WHERE id = ?').get(id);
+    if (!had) this.sql.query('INSERT INTO boards (id, first_seen, last_seen, fw) VALUES (?, ?, ?, ?)').run(id, now, now, fw);
+    if (throwId === undefined) {
+      this.sql.query("UPDATE boards SET last_seen = ?, connects = connects + 1, fw = CASE WHEN ? = '' THEN fw ELSE ? END WHERE id = ?").run(now, fw, fw, id);
+    } else {
+      this.sql.query('UPDATE boards SET last_seen = ?, throws = throws + (last_throw != ?), last_throw = ? WHERE id = ?').run(now, throwId, throwId, id);
+    }
+    return !had;
+  }
+
+  seeBoardKnown(id: string): boolean {
+    return !!this.sql.query('SELECT 1 FROM boards WHERE id = ?').get(id);
+  }
+
+  listBoards(): Board[] {
+    return this.sql.query<Board, []>('SELECT id, first_seen, last_seen, fw, connects, throws FROM boards ORDER BY first_seen').all();
+  }
+
+  countBoards(): number {
+    return this.sql.query<{ n: number }, []>('SELECT COUNT(*) AS n FROM boards').get()!.n;
   }
 
   // ------------------------------------------------------------- prefs

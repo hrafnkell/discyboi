@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1720" />
+    <title>discyboi FAQ</title>
+    <meta name="description" content="Questions about discyboi, the disc golf throw tracker: weight, accuracy, centring, iOS, firmware updates, the flight simulator and building your own." />
+    <meta property="og:title" content="discyboi FAQ" />
+    <meta property="og:description" content="Questions about the discyboi disc golf throw tracker." />
+    <meta property="og:image" content="https://discyboi.com/img/on-disc.jpg" />
+    <meta property="og:url" content="https://discyboi.com/faq/" />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://discyboi.com/faq/" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='14' ry='6' fill='%23ffb703'/%3E%3Cellipse cx='16' cy='15' rx='14' ry='6' fill='%23fb8500'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/landing.css" />
+    <script defer src="https://umami.brew.is/script.js" data-website-id="2cb245d3-77c7-405a-ba95-143347f15274"></script>
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="../"><span class="logo"></span>discyboi</a>
+      <nav>
+        <a href="../#measures">What it measures</a>
+        <a href="../#how">How it works</a>
+        <a href="../#lab">The lab</a>
+        <a href="../build/">Build one</a>
+        <a href="./" aria-current="page">FAQ</a>
+      </nav>
+      <a class="btn small ghost get" href="../#get-one">Get one</a>
+      <a class="btn small" href="../lab/" aria-label="Open the lab"><span class="wide">Open the lab</span><span class="narrow">Lab</span></a>
+    </header>
+
+    <main>
+      <section id="faq" class="page-top">
+        <h1 class="page-title">Questions</h1>
+        <p class="section-lead">The ones that keep coming up. Something missing? Email <a href="mailto:info@discyboi.com">info@discyboi.com</a>.</p>
+
+        <div class="faq-groups">
+          <div class="faq-group">
+            <h3>The device</h3>
+            <details>
+              <summary>How much does it weigh?</summary>
+              <p>About 10&nbsp;g with the case and the coin cell. That's a few percent of a disc, so it nudges the flight a little;
+                mounting it on a disc a bit lighter than your usual one keeps the total close to what you're used to.</p>
+            </details>
+            <details>
+              <summary>Why two motion sensors?</summary>
+              <p>Mostly for spin. The gyro tops out at about 650&nbsp;rpm, and a decent backhand spins at 800–1,400&nbsp;rpm.
+                Above that, the sensor 9&nbsp;mm off the centre feels a pull towards the centre that grows with spin, so spin can be worked out from it instead.</p>
+              <p>On its own that sensor can't tell the pull apart from the throw's own acceleration or gravity. The centre sensor feels
+                those too but almost no pull, so subtracting one from the other leaves a clean spin reading. The centre sensor also gives
+                the disc's own motion for the release speed, and the pair shows how far off centre the board is mounted.</p>
+            </details>
+            <details>
+              <summary>Does it work on very domey discs?</summary>
+              <p>It should. The case has a flat base and sits on 0.6–1.1&nbsp;mm VHB tape, which takes up the slight curve under the
+                flight plate; on a typical disc that's under 0.1&nbsp;mm across the case. On a strongly domed disc, use the thicker tape.
+                The centring jig works from the injection mark, so the dome doesn't affect it.</p>
+            </details>
+            <details>
+              <summary>Can I move it between discs?</summary>
+              <p>Yes. Glue a printed base onto each disc you want to use, then undo the three lid screws and move the board and the lid
+                across. A spare base is a few grams of plastic and a piece of tape. The board keeps its calibration, which is stored on the board itself.</p>
+            </details>
+            <details>
+              <summary>Can I use it to find my disc?</summary>
+              <p>No. It has no GPS or beeper, and Bluetooth only reaches a few tens of metres.</p>
+            </details>
+          </div>
+
+          <div class="faq-group">
+            <h3>Using it</h3>
+            <details>
+              <summary>What do I use it for?</summary>
+              <p>Mostly throwing into a net. Everything is measured in the pull and the release, so 1–2&nbsp;m of flight is enough.
+                The lab then flies the throw as a full simulated flight with the disc you pick, so you see roughly where it would have gone.
+                It's made for working on form: every throw of a session, trends, and comparisons.</p>
+            </details>
+            <details>
+              <summary>How fast does a throw show up?</summary>
+              <p>Basically immediately. The board works out the numbers on the disc and sends them when the disc hits the net,
+                and the simulated flight starts straight away.</p>
+            </details>
+            <details>
+              <summary>Does it work on an iPhone or iPad?</summary>
+              <p>Not in Safari. Apple doesn't support Web Bluetooth in any iOS browser, so the page can't reach the board. Apps like
+                Bluefy or WebBLE add Web Bluetooth to iOS and might work, but I haven't tested them. Chrome or Edge on a laptop, a desktop or
+                an Android phone all work; there's nothing to install.</p>
+            </details>
+            <details>
+              <summary>How much does centring matter?</summary>
+              <p>It matters, but less than you might think. The centre sensor should sit on the spin axis: off centre, the spin adds a
+                pull that looks like the disc accelerating. The firmware accounts for small offsets and learns the sensors' own quirks
+                over your first few throws. The printed jig centres the case on the disc's injection mark, which is close enough.</p>
+            </details>
+            <details>
+              <summary>What does the lab record about my board?</summary>
+              <p>To count how many boards exist, the lab sends the server an anonymous board id each time it connects and each time you throw.
+                The id is a scrambled (hashed) form of the chip's factory serial number, sent with the firmware version.
+                Nothing about you goes with it, and you don't need an account. Throws are only stored on the server if you log in and save them.</p>
+            </details>
+            <details>
+              <summary>How do I update the firmware?</summary>
+              <p>In the lab: connect, then choose <b>Update firmware</b>. It goes over Bluetooth, with no cables.</p>
+            </details>
+          </div>
+
+          <div class="faq-group">
+            <h3>Accuracy and the simulator</h3>
+            <details>
+              <summary>How accurate is it?</summary>
+              <p>Good enough to work on form, but not yet checked against a radar or a camera.</p>
+              <ul>
+                <li><b>Spin</b> is measured directly and is the most reliable number.</li>
+                <li><b>Speed</b> comes from adding up the acceleration through the pull. Small errors build up over the 1–2&nbsp;s that takes, so it's the number most likely to be off.</li>
+                <li><b>Hyzer and nose angle</b> come from tracking the disc's orientation with the gyro from the moment it's still in your hand to release.</li>
+                <li><b>Distance</b> is a simulation of those numbers with the disc you choose, so it's an estimate of where the throw would have gone, not a measurement.</li>
+              </ul>
+            </details>
+            <details>
+              <summary>Has it been calibrated against a known source?</summary>
+              <p>Not yet. So far it has been checked by hundreds of real throws and by whether the numbers make sense for those throws.
+                A comparison with a radar gun or a high-speed camera is the next step; if you have one and would like to help, get in touch.</p>
+            </details>
+            <details>
+              <summary>Where do the simulator's lift, drag and moment curves come from?</summary>
+              <p>From the standard published disc models (Hummel 2003; Potts and Crowther 2002). Lift, drag and pitching moment depend on the angle between the airflow and the disc,
+                and the spinning disc is simulated in full 3D, so the pitching moment tips it sideways rather than nose up.
+                That's what makes discs turn and fade, and why more spin makes them steadier.</p>
+              <p>A disc's flight numbers set the curves: speed lowers drag, glide adds lift, turn adds a nose-down moment at high speed, and fade a nose-up one as it slows.
+                Flight numbers are opinions, not measurements, so the mapping is tuned to give typical distances for a given arm speed rather than measured in a wind tunnel.</p>
+            </details>
+          </div>
+
+          <div class="faq-group">
+            <h3>Getting one and building one</h3>
+            <details>
+              <summary>Where do I get one?</summary>
+              <p>Nothing is for sale yet. <a href="../#get-one">Sign up</a> if you'd like an assembled board from the first small batch,
+                or <a href="../build/">build one yourself</a>: the files, parts list and cost are all there.</p>
+            </details>
+            <details>
+              <summary>Can I use the website with a board I built myself?</summary>
+              <p>Yes, the lab works with any discyboi board. To get firmware updates from the website, flash the released firmware
+                (see <a href="../build/#flash">first flash</a>). Builds signed with your own key work too, but then the website's updates won't install on them.</p>
+            </details>
+            <details>
+              <summary>Will it work with sim software like Link Disc Golf?</summary>
+              <p>Not today: discyboi talks to its own lab. Its Bluetooth protocol is open and defined in the source, so a link to other software is possible.</p>
+            </details>
+            <details>
+              <summary>Is this made with AI?</summary>
+              <p>Yes, substantially. Much of the firmware, the website and the board design code were written with an AI coding assistant.
+                I designed it, directed the work, and built and tested it on real boards with hundreds of throws.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span><span class="logo"></span>discyboi</span>
+      <a href="../">Home</a>
+      <a href="../lab/">Flight lab</a>
+      <a href="../lab/throws.html">Throws</a>
+      <a href="../build/">Build one</a>
+      <a href="./">FAQ</a>
+      <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
+      <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Open source licence</a>
+      <a href="mailto:info@discyboi.com">info@discyboi.com</a>
+    </footer>
+    <dialog class="lightbox" aria-label="Image viewer">
+      <img alt="" />
+      <p class="lb-cap"></p>
+      <button class="lb-btn lb-prev" type="button" aria-label="Previous image">‹</button>
+      <button class="lb-btn lb-next" type="button" aria-label="Next image">›</button>
+      <button class="lb-btn lb-close" type="button" aria-label="Close">×</button>
+    </dialog>
+    <script type="module" src="/src/landing.ts"></script>
+  </body>
+</html>

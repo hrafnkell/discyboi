@@ -116,6 +116,22 @@ const PREFS: Record<string, (v: unknown) => unknown> = {
 
 const MAX_INTEREST = Number(env.DISCYBOI_MAX_INTEREST ?? 2000);
 const signups = new Map<string, number[]>();
+// New boards per IP per hour, and boards overall: keeps a script from flooding the table.
+const BOARDS_PER_HOUR = 20;
+const MAX_BOARDS = 100_000;
+const newBoards = new Map<string, number[]>();
+function boardLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (newBoards.get(ip) ?? []).filter((t) => now - t < 3600e3);
+  if (recent.length >= BOARDS_PER_HOUR) return true;
+  newBoards.set(ip, [...recent, now]);
+  return false;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, ts] of newBoards) if (!ts.some((t) => now - t < 3600e3)) newBoards.delete(ip);
+}, 600e3).unref?.();
+
 function signupLimited(ip: string): boolean {
   const now = Date.now();
   const recent = (signups.get(ip) ?? []).filter((t) => now - t < 3600e3);
@@ -224,6 +240,21 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
     const added = db.addInterest({ email, name, wants, note });
     console.log(`interest: ${added ? 'new' : 'updated'} sign-up (${wants})`);
     // Same answer either way, so the form can't be used to find out who is on the list.
+    return json({ ok: true });
+  }
+
+  // Anonymous board count: the lab reports each board it connects to, and each throw. No account needed.
+  if (path === '/api/board' && method === 'POST') {
+    const b = await body<{ id?: unknown; fw?: unknown; throw?: unknown }>(req);
+    const id = typeof b?.id === 'string' && /^[0-9a-f]{16}$/.test(b.id) ? b.id : '';
+    if (!id) return err(400, 'Bad request');
+    const fw = clean(b!.fw, 40);
+    const t = b!.throw;
+    const throwId = typeof t === 'number' && Number.isInteger(t) && t > 0 && t < 2 ** 32 ? t : undefined;
+    if (t !== undefined && throwId === undefined) return err(400, 'Bad request');
+    const known = db.seeBoardKnown(id);
+    if (!known && (boardLimited(clientIp(req, server)) || db.countBoards() >= MAX_BOARDS)) return json({ ok: true });
+    if (db.seeBoard(id, fw, throwId)) console.log(`board: new (${fw || 'unknown firmware'})`);
     return json({ ok: true });
   }
 

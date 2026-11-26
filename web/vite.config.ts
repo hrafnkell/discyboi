@@ -41,6 +41,6 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 1000,
     // / is the landing page; the app lives under /lab/.
-    rollupOptions: { input: { home: 'index.html', main: 'lab/index.html', throws: 'lab/throws.html', build: 'build/index.html' } },
+    rollupOptions: { input: { home: 'index.html', main: 'lab/index.html', throws: 'lab/throws.html', build: 'build/index.html', faq: 'faq/index.html' } },
   },
 });
