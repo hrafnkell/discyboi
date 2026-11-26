@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1720" />
+    <title>Build a discyboi</title>
+    <meta name="description" content="Build your own discyboi disc golf throw tracker from the open source files, and what the parts cost." />
+    <meta property="og:title" content="Build a discyboi" />
+    <meta property="og:description" content="Open source disc golf throw tracker: what's in the repo and what it costs." />
+    <meta property="og:image" content="https://discyboi.com/img/on-disc.jpg" />
+    <meta property="og:url" content="https://discyboi.com/build/" />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://discyboi.com/build/" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='17' rx='14' ry='6' fill='%23ffb703'/%3E%3Cellipse cx='16' cy='15' rx='14' ry='6' fill='%23fb8500'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/landing.css" />
+    <script defer src="https://umami.brew.is/script.js" data-website-id="2cb245d3-77c7-405a-ba95-143347f15274"></script>
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="../"><span class="logo"></span>discyboi</a>
+      <nav>
+        <a href="../#measures">What it measures</a>
+        <a href="../#how">How it works</a>
+        <a href="../#lab">The lab</a>
+        <a href="./" aria-current="page">Build one</a>
+      </nav>
+      <a class="btn small ghost get" href="../#get-one">Get one</a>
+      <a class="btn small" href="../lab/" aria-label="Open the lab"><span class="wide">Open the lab</span><span class="narrow">Lab</span></a>
+    </header>
+
+    <main>
+      <section id="build" class="page-top">
+        <h1 class="page-title">Build one</h1>
+        <p class="section-lead">Everything needed to make one is in the repository.</p>
+        <div class="build">
+          <ul class="list">
+            <li><strong>Board:</strong> KiCad project, gerbers and a parts list ready to order.</li>
+            <li><strong>Case:</strong> OpenSCAD source and printable files for the case and the centring jig.</li>
+            <li><strong>Firmware:</strong> Zephyr, built in Docker, updated from the browser over Bluetooth.</li>
+            <li><strong>Web app:</strong> TypeScript and three.js, with a small server for accounts and sync.</li>
+            <li><strong>Licence:</strong> open hardware and open source. Build your own freely; if you share or sell one, credit the project and share your changes.</li>
+          </ul>
+          <div class="thumbs">
+            <img data-full="/img/full/paste.jpg" src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
+            <img data-full="/img/full/programming.jpg" src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
+          </div>
+        </div>
+        <div class="cta">
+          <a class="btn ghost" href="https://github.com/hrafnkell/discyboi">github.com/hrafnkell/discyboi</a>
+        </div>
+
+        <h3 class="sub">What it costs</h3>
+        <p class="section-lead">Roughly US$30–35 in parts per tracker. The two motion sensors and the Bluetooth module are most of it.</p>
+        <div class="scrollx">
+          <table class="cost">
+            <thead><tr><th>Part</th><th class="qty">Qty</th><th class="usd">Approx. US$</th></tr></thead>
+            <tbody>
+              <tr><td>Bluetooth module (Fanstel BC15M, nRF54L15)</td><td class="qty">1</td><td class="usd">8–12</td></tr>
+              <tr><td>Motion sensor (ST LSM6DSV320X)</td><td class="qty">2</td><td class="usd">10–16</td></tr>
+              <tr><td>Coin-cell clip, regulator, LED, capacitors, resistors</td><td class="qty">20</td><td class="usd">3–4</td></tr>
+              <tr><td>Circuit board, from a batch of 5</td><td class="qty">1</td><td class="usd">2–4</td></tr>
+              <tr><td>CR2032 cell</td><td class="qty">1</td><td class="usd">0.50–1</td></tr>
+              <tr><td>Printed case, screws, mounting tape</td><td class="qty"></td><td class="usd">~1</td></tr>
+            </tbody>
+            <tfoot><tr><th>Per tracker</th><td class="qty"></td><td class="usd">~30–35</td></tr></tfoot>
+          </table>
+        </div>
+        <p class="fine">
+          Rough single-unit prices from Mouser and JLCPCB, not quotes. If you're just building one, you need a minimum order of 5 PCBs,
+          add shipping and realistically the cost would be around $90 USD. You need to be comfortable reflow-soldering very tiny 0.5&nbsp;mm-pitch parts.
+        </p>
+
+        <p class="getone">
+          <strong>Want one without the soldering?</strong> I'm gauging interest in a small batch of assembled boards.
+          <a href="../#get-one">Sign up on the front page</a>.
+        </p>
+        <p class="contact">Questions, ideas or found a bug? Email <a href="mailto:info@discyboi.com">info@discyboi.com</a>.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span><span class="logo"></span>discyboi</span>
+      <a href="../">Home</a>
+      <a href="../lab/">Flight lab</a>
+      <a href="../lab/throws.html">Throws</a>
+      <a href="./">Build one</a>
+      <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
+      <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Open source licence</a>
+      <a href="mailto:info@discyboi.com">info@discyboi.com</a>
+    </footer>
+    <dialog class="lightbox" aria-label="Image viewer">
+      <img alt="" />
+      <p class="lb-cap"></p>
+      <button class="lb-btn lb-prev" type="button" aria-label="Previous image">‹</button>
+      <button class="lb-btn lb-next" type="button" aria-label="Next image">›</button>
+      <button class="lb-btn lb-close" type="button" aria-label="Close">×</button>
+    </dialog>
+    <script type="module" src="/src/landing.ts"></script>
+  </body>
+</html>

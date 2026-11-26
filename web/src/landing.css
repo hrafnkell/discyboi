@@ -170,10 +170,20 @@ main img[data-full] { cursor: zoom-in; }
 .lb-prev { left: 14px; top: 50%; transform: translateY(-50%); }
 .lb-next { right: 14px; top: 50%; transform: translateY(-50%); }
 
+.nav .narrow { display: none; }
+
+@media (max-width: 420px) {
+  /* Logo + "Get one" + the lab button have to fit on a small phone. */
+  .nav { padding-left: 16px; padding-right: 16px; gap: 8px; }
+  .nav .wide { display: none; }
+  .nav .narrow { display: inline; }
+}
+
 @media (max-width: 860px) {
   body { font-size: 16px; }
   .nav nav { display: none; }
-  .nav .btn { margin-left: auto; }
+  .nav { gap: 10px; }
+  .nav .get { margin-left: auto; }
   section { padding-top: 28px; }
   .hero { grid-template-columns: 1fr; gap: 28px; padding-top: 20px; }
   .hero-img { order: -1; }
@@ -193,3 +203,10 @@ main img[data-full] { cursor: zoom-in; }
   html { scroll-behavior: auto; }
   .btn { transition: none; }
 }
+
+/* Sub-pages (e.g. /build/): the page's title sits where a section heading would. */
+.page-title { font-size: clamp(1.9rem, 4.2vw, 2.8rem); }
+.nav nav a[aria-current="page"] { color: var(--text); }
+/* Build page: points to the sign-up form on the front page. */
+.getone { margin-top: 28px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.getone a { color: var(--accent); }

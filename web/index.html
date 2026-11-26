@@ -23,9 +23,10 @@
         <a href="#measures">What it measures</a>
         <a href="#how">How it works</a>
         <a href="#lab">The lab</a>
-        <a href="#build">Build one</a>
+        <a href="./build/">Build one</a>
       </nav>
-      <a class="btn small" href="./lab/">Open the lab</a>
+      <a class="btn small ghost get" href="#get-one">Get one</a>
+      <a class="btn small" href="./lab/" aria-label="Open the lab"><span class="wide">Open the lab</span><span class="narrow">Lab</span></a>
     </header>
 
     <main>
@@ -35,7 +36,8 @@
           <h1>A flight tracker that rides on your disc</h1>
           <p class="lead">
             discyboi is a 34&nbsp;mm sensor board that sticks under a disc golf disc. It measures each throw at release
-            and sends the numbers to your browser over Bluetooth: speed, spin, hyzer, nose angle and more.
+            and sends the numbers to your browser over Bluetooth: speed, spin, hyzer, nose angle and more. You throw into a net
+            and get instant readings about your calculated distance. It weighs 10grams with battery and is open source.
           </p>
           <div class="cta">
             <a class="btn" href="./lab/">Open the flight lab</a>
@@ -146,47 +148,15 @@
       </section>
 
       <section id="build">
-        <h2>Build one</h2>
-        <p class="section-lead">Everything needed to make one is in the repository.</p>
-        <div class="build">
-          <ul class="list">
-            <li><strong>Board:</strong> KiCad project, gerbers and a parts list ready to order.</li>
-            <li><strong>Case:</strong> OpenSCAD source and printable files for the case and the centring jig.</li>
-            <li><strong>Firmware:</strong> Zephyr, built in Docker, updated from the browser over Bluetooth.</li>
-            <li><strong>Web app:</strong> TypeScript and three.js, with a small server for accounts and sync.</li>
-            <li><strong>Licence:</strong> open hardware and open source. Build your own freely; if you share or sell one, credit the project and share your changes.</li>
-          </ul>
-          <div class="thumbs">
-            <img data-full="/img/full/paste.jpg" src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
-            <img data-full="/img/full/programming.jpg" src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
-          </div>
-        </div>
-        <div class="cta">
-          <a class="btn ghost" href="https://github.com/hrafnkell/discyboi">github.com/hrafnkell/discyboi</a>
-        </div>
-
-        <h3 class="sub">What it costs</h3>
-        <p class="section-lead">Roughly US$30–35 in parts per tracker. The two motion sensors and the Bluetooth module are most of it.</p>
-        <div class="scrollx">
-          <table class="cost">
-            <thead><tr><th>Part</th><th class="qty">Qty</th><th class="usd">Approx. US$</th></tr></thead>
-            <tbody>
-              <tr><td>Bluetooth module (Fanstel BC15M, nRF54L15)</td><td class="qty">1</td><td class="usd">8–12</td></tr>
-              <tr><td>Motion sensor (ST LSM6DSV320X)</td><td class="qty">2</td><td class="usd">10–16</td></tr>
-              <tr><td>Coin-cell clip, regulator, LED, capacitors, resistors</td><td class="qty">20</td><td class="usd">3–4</td></tr>
-              <tr><td>Circuit board, from a batch of 5</td><td class="qty">1</td><td class="usd">2–4</td></tr>
-              <tr><td>CR2032 cell</td><td class="qty">1</td><td class="usd">0.50–1</td></tr>
-              <tr><td>Printed case, screws, mounting tape</td><td class="qty"></td><td class="usd">~1</td></tr>
-            </tbody>
-            <tfoot><tr><th>Per tracker</th><td class="qty"></td><td class="usd">~30–35</td></tr></tfoot>
-          </table>
-        </div>
-        <p class="fine">
-          Rough single-unit prices from Mouser and JLCPCB, not quotes. If you're just building one, you need a minimum order of 5 PCBs,
-          add shipping and realistically the cost would be around $90 USD. You need to be comfortable reflow-soldering very tiny 0.5&nbsp;mm-pitch parts.
+        <h2>Get one, or build one</h2>
+        <p class="section-lead">
+          Sign up below if you'd like an assembled board. Rather make it yourself? Everything is open source: the board,
+          the case, the firmware and this website.
         </p>
-
-        <aside class="interest">
+        <div class="cta">
+          <a class="btn ghost" href="./build/">Build one yourself: files and parts cost</a>
+        </div>
+        <aside class="interest" id="get-one">
           <h3>Want one without the soldering?</h3>
           <p>
             I'm gauging interest in having a small batch of boards made. An assembled, tested board would be about
@@ -230,6 +200,7 @@
       <span><span class="logo"></span>discyboi</span>
       <a href="./lab/">Flight lab</a>
       <a href="./lab/throws.html">Throws</a>
+      <a href="./build/">Build one</a>
       <a href="https://github.com/hrafnkell/discyboi">GitHub</a>
       <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Open source licence</a>
       <a href="mailto:info@discyboi.com">info@discyboi.com</a>
