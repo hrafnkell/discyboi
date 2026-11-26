@@ -21,6 +21,10 @@ esac
 [ "$ID" = "$(git rev-parse --short HEAD)" ] || die "the build is from commit $ID, not the current one: run ./build.sh"
 # The version text is inside the image (the disc reports it), so a stale build shows here.
 grep -aqF "$VER" "$BIN" || die "$BIN is not version $VER: run ./build.sh"
+# MCUboot's header carries its own copy (what the web app checks against the manifest). It can
+# go stale when only app/VERSION changed; build.sh then builds pristine, but check anyway.
+HDR="$(od -An -t u1 -j 20 -N 4 "$BIN" | awk '{print $1"."$2"."($3+256*$4)}')"
+[ "$HDR" = "$NUM" ] || die "$BIN's MCUboot header says $HDR, not $NUM: run ./build.sh pristine"
 
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT

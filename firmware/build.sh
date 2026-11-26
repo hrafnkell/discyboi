@@ -12,6 +12,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 IMAGE=zmkfirmware/zmk-build-arm:stable
 PRISTINE=auto; [ "${1:-}" = pristine ] && PRISTINE=always
+# The image header's version (MCUboot, checked by the web app) is only re-read from app/VERSION
+# when the configuration is regenerated, which a VERSION-only change doesn't trigger.
+WANT="$(sed -n 's/^VERSION_MAJOR = //p;s/^VERSION_MINOR = //p;s/^PATCHLEVEL = //p' app/VERSION | paste -sd.)"
+HAVE="$(sed -n 's/^CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="\([0-9.]*\)+.*/\1/p' build/app/zephyr/.config 2>/dev/null || true)"
+[ -z "$HAVE" ] || [ "$HAVE" = "$WANT" ] || { echo "version $HAVE -> $WANT: clean build"; PRISTINE=always; }
 # Stamp the git commit into the image (shown by the web app next to the version from app/VERSION).
 ID="$(git rev-parse --short HEAD 2>/dev/null || echo nogit)"
 [ -z "$(git status --porcelain -- . 2>/dev/null)" ] || ID="$ID-dirty"
