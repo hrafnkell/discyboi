@@ -6,9 +6,11 @@
  * DISCYBOI_MAX_THROWS (per account, 20000), DISCYBOI_TRUST_PROXY (1 = use X-Forwarded-For / -Proto),
  * DISCYBOI_ORIGINS (extra allowed origins, comma separated), DISCYBOI_HOST (canonical host, e.g. discyboi.com)
  * with DISCYBOI_ALIASES (hosts that 308-redirect to it, comma separated).
+ * Backs the database up once a day to <db dir>/backups/, keeping the last 7 (see backup.ts).
  */
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, normalize, resolve } from 'node:path';
+import { scheduleBackups } from './backup';
 import { Db, type StoredThrow, type User } from './db';
 
 const env = process.env;
@@ -32,6 +34,7 @@ const MAX_CAPTURES = Number(env.DISCYBOI_MAX_CAPTURES ?? 1000);
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = new Db(DB_PATH);
+scheduleBackups(db, DB_PATH);
 setInterval(() => db.pruneSessions(), 3600e3);
 
 // ------------------------------------------------------------------ helpers
@@ -259,9 +262,10 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
   }
 
   if ((path === '/api/login' || path === '/api/signup') && method === 'POST') {
-    const b = await body<{ username?: unknown; password?: unknown }>(req);
+    const b = await body<{ username?: unknown; password?: unknown; email?: unknown }>(req);
     const username = typeof b?.username === 'string' ? b.username.trim() : '';
     const password = typeof b?.password === 'string' ? b.password : '';
+    const email = clean(b?.email, 254).toLowerCase();
     const ip = clientIp(req, server);
     const keys = [`ip:${ip}`, `ipu:${ip}|${username.toLowerCase()}`];
     if (limited(keys)) return err(429, 'Too many attempts. Try again in 15 minutes.');
@@ -270,11 +274,13 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
       if (!SIGNUP_OPEN) return err(403, 'Sign-up is closed on this server');
       if (!USERNAME.test(username)) return err(400, 'Username: 3–32 letters, digits, . _ or -');
       if (password.length < 8 || password.length > 256) return err(400, 'Password: at least 8 characters');
-      u = await db.createUser(username, password);
-      if (!u) {
-        fail([`ip:${ip}`]); // stops enumerating names through sign-up
-        return err(409, 'That username is taken');
+      if (email && !EMAIL.test(email)) return err(400, 'That email address doesn’t look right');
+      const made = await db.createUser(username, password, email || null);
+      if (!made || made === 'email') {
+        fail([`ip:${ip}`]); // stops enumerating names (and emails) through sign-up
+        return err(409, made ? 'That email is already used by another account' : 'That username is taken');
       }
+      u = made;
     } else {
       if (!username || !password || password.length > 256) return err(400, 'Enter a username and password');
       u = await db.checkLogin(username, password);
@@ -295,6 +301,21 @@ async function api(req: Request, server: Bun.Server<undefined>, path: string): P
 
   // Everything below needs a session.
   if (!user) return err(401, 'Not signed in');
+
+  // Add, change or remove (empty) the account's email.
+  if (path === '/api/email' && method === 'POST') {
+    const b = await body<{ email?: unknown }>(req);
+    if (!b || (b.email !== undefined && typeof b.email !== 'string')) return err(400, 'Bad request');
+    const email = clean(b.email, 254).toLowerCase();
+    if (email && !EMAIL.test(email)) return err(400, 'That email address doesn’t look right');
+    const ip = clientIp(req, server);
+    if (limited([`ip:${ip}`])) return err(429, 'Too many attempts. Try again in 15 minutes.');
+    if (!db.setEmail(user.id, email || null)) {
+      fail([`ip:${ip}`]);
+      return err(409, 'That email is already used by another account');
+    }
+    return json({ ok: true, email: email || null });
+  }
 
   if (path === '/api/password' && method === 'POST') {
     const b = await body<{ current?: unknown; password?: unknown }>(req);

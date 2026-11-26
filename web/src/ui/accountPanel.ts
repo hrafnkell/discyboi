@@ -20,6 +20,8 @@ export class AccountPanel {
   private pop: HTMLElement;
   private me?: Me;
   private reachable = false;
+  private mode: 'signin' | 'signup' = 'signin';
+  private draft = { username: '', email: '' };
 
   constructor(
     private store: ThrowStore,
@@ -84,33 +86,51 @@ export class AccountPanel {
     if (!this.reachable)
       return h('div', {}, h('h3', {}, 'No server'), h('p.muted', {}, 'Accounts need the discyboi server (bun run server). Throws are saved in this browser, newest 500.'), h('button.ghostbtn', { type: 'button', onclick: () => this.init().then(() => this.renderPop()) }, 'Try again'));
     const signup = this.me?.signup ?? false;
-    const user = h('input', { name: 'username', autocomplete: 'username', required: true, minlength: 3, maxlength: 32, autocapitalize: 'none', spellcheck: 'false' });
-    const pass = h('input', { name: 'password', type: 'password', autocomplete: 'current-password', required: true, maxlength: 256 });
+    const creating = signup && this.mode === 'signup';
+    const user = h('input', { name: 'username', autocomplete: 'username', required: true, minlength: 3, maxlength: 32, autocapitalize: 'none', spellcheck: 'false', value: this.draft.username });
+    const email = h('input', { name: 'email', type: 'email', autocomplete: 'email', maxlength: 254, autocapitalize: 'none', spellcheck: 'false', value: this.draft.email });
+    const pass = h('input', { name: 'password', type: 'password', autocomplete: creating ? 'new-password' : 'current-password', required: true, minlength: creating ? 8 : undefined, maxlength: 256 });
     const msg = h('p.acctmsg', { role: 'alert' });
-    const submitBtn = h('button.connect', { type: 'submit' }, 'Sign in');
-    const createBtn = signup ? h('button.ghostbtn', { type: 'submit', value: 'signup' }, 'Create account') : null;
+    // Switching views keeps what was typed.
+    const switchTo = (mode: 'signin' | 'signup') => {
+      this.draft = { username: user.value, email: email.value };
+      this.mode = mode;
+      this.renderPop();
+      this.pop.querySelector<HTMLInputElement>('input')?.focus();
+    };
+    const submitBtn = h('button.connect', { type: 'submit' }, creating ? 'Create account' : 'Sign in');
+    const otherBtn = signup
+      ? h('button.ghostbtn', { type: 'button', onclick: () => switchTo(creating ? 'signin' : 'signup') }, creating ? 'I have an account' : 'Create account')
+      : null;
     const form = h(
       'form.acctform',
       {},
-      h('h3', {}, 'Your account'),
+      h('h3', {}, creating ? 'Create an account' : 'Your account'),
       h('p.muted', {}, `Signed out, throws are kept in this browser (newest 500). An account keeps up to ${(this.me?.maxThrows ?? 0).toLocaleString()} and shows them on every device.`),
       h('label', {}, 'Username', user),
-      h('label', {}, 'Password', pass),
+      creating ? h('label', {}, h('span', {}, 'Email ', h('span.opt', {}, '(optional)')), email) : null,
+      creating ? h('p.muted.small', {}, 'Only used to get you back in if you forget your password. Never shared.') : null,
+      h('label', {}, creating ? 'Password (at least 8 characters)' : 'Password', pass),
       msg,
-      h('div.acctrow', {}, submitBtn, createBtn),
+      h('div.acctrow', {}, submitBtn, otherBtn),
     );
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const creating = (e as SubmitEvent).submitter === createBtn;
       if (creating && pass.value.length < 8) {
         msg.textContent = 'Password: at least 8 characters';
+        return;
+      }
+      if (creating && email.value.trim() && !email.checkValidity()) {
+        msg.textContent = 'That email address doesn’t look right';
         return;
       }
       for (const b of form.querySelectorAll('button')) b.disabled = true;
       msg.textContent = '';
       try {
-        this.me = await (creating ? api.signup : api.login)(user.value.trim(), pass.value);
+        this.me = creating ? await api.signup(user.value.trim(), pass.value, email.value.trim()) : await api.login(user.value.trim(), pass.value);
         await this.store.useAccount(this.me.user!, this.me.maxThrows);
+        this.mode = 'signin';
+        this.draft = { username: '', email: '' };
         const local = this.store.localThrows().length;
         this.toast(creating ? `Account created. Welcome, ${this.me.user!.username}` : `Signed in as ${this.me.user!.username}`);
         if (local) this.toast(`${local} throws in this browser: upload them from the account menu`);
@@ -123,6 +143,46 @@ export class AccountPanel {
       }
     });
     return form;
+  }
+
+  /** The account's email: shown, and added, changed or removed in place. */
+  private emailView(): HTMLElement {
+    const cur = this.me?.user?.email ?? null;
+    const wrap = h('div.acctemail');
+    const show = () => {
+      const edit = h('button.linkbtn', { type: 'button', onclick: () => editing() }, cur ? 'Change' : 'Add email');
+      wrap.replaceChildren(
+        h('p.muted', {}, cur ? h('span', {}, 'Email: ', h('span.acctemailaddr', {}, cur), ' ') : h('span', {}, 'No email: add one so you can get back in if you forget your password. '), edit),
+      );
+    };
+    const editing = () => {
+      const input = h('input', { type: 'email', autocomplete: 'email', maxlength: 254, autocapitalize: 'none', spellcheck: 'false', value: cur ?? '', placeholder: 'you@example.com' });
+      const msg = h('p.acctmsg', { role: 'alert' });
+      const save = h('button.connect', { type: 'submit' }, 'Save');
+      const cancel = h('button.ghostbtn', { type: 'button', onclick: () => show() }, 'Cancel');
+      const form = h('form.acctform', {}, h('label', {}, 'Email (leave empty to remove)', input), msg, h('div.acctrow', {}, save, cancel));
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (input.value.trim() && !input.checkValidity()) {
+          msg.textContent = 'That email address doesn’t look right';
+          return;
+        }
+        save.disabled = cancel.disabled = true;
+        try {
+          const r = await api.email(input.value.trim());
+          if (this.me?.user) this.me = { ...this.me, user: { ...this.me.user, email: r.email } };
+          this.toast(r.email ? 'Email saved' : 'Email removed');
+          this.renderPop();
+        } catch (err) {
+          msg.textContent = err instanceof ApiError ? err.message : 'Something went wrong';
+          save.disabled = cancel.disabled = false;
+        }
+      });
+      wrap.replaceChildren(form);
+      input.focus();
+    };
+    show();
+    return wrap;
   }
 
   private accountView(): HTMLElement {
@@ -175,6 +235,7 @@ export class AccountPanel {
       h('h3', {}, u.username),
       h('p', {}, h('span.syncdot', { 'data-sync': this.store.sync }), SYNC_TEXT[this.store.sync]),
       h('p.muted', {}, `${n.toLocaleString()} throws (up to ${this.store.capacity.toLocaleString()})`),
+      this.emailView(),
       h('div.acctrow', {}, upload, out),
     );
   }

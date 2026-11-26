@@ -5,6 +5,8 @@ import type { ThrowRecord } from './throws';
 export interface User {
   id: number;
   username: string;
+  /** Optional, for account recovery. */
+  email?: string | null;
 }
 
 export interface Me {
@@ -45,7 +47,8 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   me: () => call<Me>('GET', '/api/me'),
   login: (username: string, password: string) => call<Me>('POST', '/api/login', { username, password }),
-  signup: (username: string, password: string) => call<Me>('POST', '/api/signup', { username, password }),
+  signup: (username: string, password: string, email?: string) => call<Me>('POST', '/api/signup', { username, password, ...(email ? { email } : {}) }),
+  email: (email: string) => call<{ ok: true; email: string | null }>('POST', '/api/email', { email }),
   logout: () => call<{ ok: true }>('POST', '/api/logout'),
   password: (current: string, password: string) => call<{ ok: true }>('POST', '/api/password', { current, password }),
   throws: () => call<{ throws: ThrowRecord[] }>('GET', '/api/throws'),

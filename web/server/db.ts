@@ -4,6 +4,8 @@ import { Database } from 'bun:sqlite';
 export interface User {
   id: number;
   username: string;
+  /** Optional, for account recovery. */
+  email?: string | null;
 }
 
 export interface StoredThrow {
@@ -91,25 +93,52 @@ export class Db {
         updated INTEGER NOT NULL
       );
     `);
+    // Optional email for account recovery (added later; older databases get the column here).
+    const cols = this.sql.query<{ name: string }, []>('PRAGMA table_info(users)').all();
+    if (!cols.some((c) => c.name === 'email')) this.sql.exec('ALTER TABLE users ADD COLUMN email TEXT');
+    this.sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email COLLATE NOCASE) WHERE email IS NOT NULL');
+  }
+
+  /** A consistent copy of the whole database at `path` (must not exist yet), safe while the server runs. */
+  backup(path: string) {
+    this.sql.query('VACUUM INTO ?').run(path);
   }
 
   // ------------------------------------------------------------- users
-  async createUser(username: string, password: string): Promise<User | undefined> {
+  /** Undefined if the username is taken; 'email' if the email is already on another account. */
+  async createUser(username: string, password: string, email: string | null = null): Promise<User | 'email' | undefined> {
+    if (email && this.emailTaken(email)) return 'email';
     const hash = await Bun.password.hash(password, { algorithm: 'argon2id' });
     try {
-      const row = this.sql.query<{ id: number }, [string, string, number]>('INSERT INTO users (username, pw_hash, created) VALUES (?, ?, ?) RETURNING id').get(username, hash, Date.now());
-      return row ? { id: row.id, username } : undefined;
+      const row = this.sql.query<{ id: number }, [string, string, number, string | null]>('INSERT INTO users (username, pw_hash, created, email) VALUES (?, ?, ?, ?) RETURNING id').get(username, hash, Date.now(), email);
+      return row ? { id: row.id, username, email } : undefined;
     } catch (e) {
-      if (String(e).includes('UNIQUE')) return undefined; // name taken
+      if (String(e).includes('UNIQUE')) return email && this.emailTaken(email) ? 'email' : undefined; // name (or, in a race, email) taken
+      throw e;
+    }
+  }
+
+  emailTaken(email: string, exceptUser = 0): boolean {
+    return !!this.sql.query('SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND id != ?').get(email, exceptUser);
+  }
+
+  /** Sets or clears (null) the account's email. False if another account already uses it. */
+  setEmail(userId: number, email: string | null): boolean {
+    if (email && this.emailTaken(email, userId)) return false;
+    try {
+      this.sql.query('UPDATE users SET email = ? WHERE id = ?').run(email, userId);
+      return true;
+    } catch (e) {
+      if (String(e).includes('UNIQUE')) return false;
       throw e;
     }
   }
 
   /** Always runs a hash verify, so a missing user takes as long as a wrong password. */
   async checkLogin(username: string, password: string): Promise<User | undefined> {
-    const row = this.sql.query<{ id: number; username: string; pw_hash: string }, [string]>('SELECT id, username, pw_hash FROM users WHERE username = ?').get(username);
+    const row = this.sql.query<{ id: number; username: string; email: string | null; pw_hash: string }, [string]>('SELECT id, username, email, pw_hash FROM users WHERE username = ?').get(username);
     const ok = await Bun.password.verify(password, row?.pw_hash ?? DUMMY_HASH);
-    return row && ok ? { id: row.id, username: row.username } : undefined;
+    return row && ok ? { id: row.id, username: row.username, email: row.email } : undefined;
   }
 
   async changePassword(userId: number, password: string) {
@@ -130,7 +159,7 @@ export class Db {
     if (!token) return undefined;
     return (
       this.sql
-        .query<User, [string, number]>('SELECT u.id, u.username FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires > ?')
+        .query<User, [string, number]>('SELECT u.id, u.username, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires > ?')
         .get(sha256(token), Date.now()) ?? undefined
     );
   }
