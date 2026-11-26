@@ -59,6 +59,11 @@ static struct capture_view frozen;
 static struct xz_learn xz;
 static bool have_capture;
 static atomic_t locked;
+/* After a throw the ring is not written for a moment, so the app can fetch the capture before
+ * new samples overwrite its start (the calm stretch the reference comes from). Ends early when
+ * a download has been and gone, or when the next pull starts. */
+#define RAW_HOLD_MS 2000
+static atomic_t hold_until_ms;
 static uint32_t throws;
 static volatile enum capture_state state = CAP_IDLE;
 
@@ -91,6 +96,7 @@ bool capture_lock(struct capture_view *view)
 
 void capture_unlock(void)
 {
+	atomic_set(&hold_until_ms, 0); /* fetched: no need to keep it any longer */
 	atomic_set(&locked, 0);
 }
 
@@ -152,6 +158,7 @@ static void finish_throw(uint32_t release_n, uint32_t land_n, bool landed,
 		abs(res->nose_cdeg % 100), res->flight_ms);
 	ble_publish_result(res);
 	led_blink(1);
+	atomic_set(&hold_until_ms, (atomic_val_t)((k_uptime_get_32() + RAW_HOLD_MS) | 1)); /* never 0 */
 }
 
 static void sampler(void *a, void *b, void *c)
@@ -163,6 +170,7 @@ static void sampler(void *a, void *b, void *c)
 	uint32_t quiet = 0;
 	uint32_t pull_n = 0, release_n = 0, land_n = 0, stop_run = 0;
 	bool landed = false;
+	bool gap = false;      /* samples were kept out of the ring (locked or held) */
 	float peak_g = 0;
 
 	while (true) {
@@ -197,8 +205,26 @@ static void sampler(void *a, void *b, void *c)
 
 		float spin_rpm = fabsf(sample_spin_dps(&s, imu_r.radius_m, NULL)) / 6.0f;
 		bool recording = state == CAP_ARMED || state == CAP_PULL || state == CAP_POST;
+		bool held = false;
+		uint32_t until = (uint32_t)atomic_get(&hold_until_ms);
 
-		if (recording && !atomic_get(&locked)) {
+		if (until) {
+			/* wrap-safe "now < until"; past it, or once the next pull starts, it's over */
+			held = state == CAP_ARMED && (int32_t)(until - k_uptime_get_32()) > 0;
+			if (!held) {
+				atomic_cas(&hold_until_ms, (atomic_val_t)until, 0);
+			}
+		}
+
+		if (recording && (atomic_get(&locked) || held)) {
+			gap = true;
+		} else if (recording) {
+			/* Samples were skipped: what's in the ring before now is not contiguous with
+			 * what follows, so the next capture starts here. */
+			if (gap) {
+				armed_n = ring_n;
+				gap = false;
+			}
 			ring[ring_n % CAPTURE_LEN] = s;
 			ring_n++;
 		}

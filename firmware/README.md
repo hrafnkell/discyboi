@@ -185,7 +185,7 @@ The device advertises as `discyboi` (connectable, ~0.5 s interval) with the stan
 2. **Samples** (`type 0x01`): `u8 count`, `u16 first index`, then `count` samples. Each sample is 15 × `i16`: centre gyro xyz, centre accel xyz, centre high-g xyz, rim accel xyz, rim high-g xyz.
 3. **End** (`type 0x02`): `u8 status` (0 complete, 1 aborted, 2 nothing to send / busy), then `u16 samples sent`.
 
-Request a large MTU (247) first. That gives 8 samples per packet, so a full capture is about 360 packets, a few seconds on 2M PHY. New throws aren't captured while a download is running.
+Request a large MTU (247) first. That gives 8 samples per packet, so a full capture is about 360 packets, a few seconds on 2M PHY. New throws aren't captured while a download is running. After each throw the ring is also left alone for up to 2 s (until a download has finished, or the next pull starts), so the capture can be fetched before new samples overwrite its start. Before 0.4.1 they did: the first ~60–140 ms of saved captures (the calm stretch before the pull) were really the disc swinging in the net after the throw, so replays of those captures can differ from what the disc reported.
 
 ## Layout
 
