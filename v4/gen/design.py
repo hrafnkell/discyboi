@@ -81,7 +81,7 @@ ACC_NETS = {'1': 'SPI_MISO', '2': 'GND', '3': 'GND', '4': 'ACC_INT1', '5': '+3V0
 PARTS = [
     # ---------------- module
     dict(ref='U1', lib=f'{P}:BC15M', value='BC15M', fp=f'{P}:Fanstel_BC15M',
-         pins={k: MOD_NETS.get(k) for k in MOD_PINS}, mfr='Fanstel', mpn='BC15M', in_bom=False),
+         pins={k: MOD_NETS.get(k) for k in MOD_PINS}, mfr='Fanstel', mpn='BC15M'),
     cap('C1', '10u', '+3V0', 'GND'),
     cap('C2', '100n', '+3V0', 'GND'),
     # ---------------- IMU (center of the board)

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f1720" />
     <title>Build a discyboi</title>
-    <meta name="description" content="Build your own discyboi disc golf throw tracker from the open source files, and what the parts cost." />
+    <meta name="description" content="Build your own discyboi disc golf throw tracker: board, parts list, assembly, first flash with an RP2040, case and costs." />
     <meta property="og:title" content="Build a discyboi" />
-    <meta property="og:description" content="Open source disc golf throw tracker: what's in the repo and what it costs." />
+    <meta property="og:description" content="Open source disc golf throw tracker: board, parts, assembly, first flash and case." />
     <meta property="og:image" content="https://discyboi.com/img/on-disc.jpg" />
     <meta property="og:url" content="https://discyboi.com/build/" />
     <meta property="og:type" content="website" />
@@ -32,25 +32,210 @@
     <main>
       <section id="build" class="page-top">
         <h1 class="page-title">Build one</h1>
-        <p class="section-lead">Everything needed to make one is in the repository.</p>
-        <div class="build">
-          <ul class="list">
-            <li><strong>Board:</strong> KiCad project, gerbers and a parts list ready to order.</li>
-            <li><strong>Case:</strong> OpenSCAD source and printable files for the case and the centring jig.</li>
-            <li><strong>Firmware:</strong> Zephyr, built in Docker, updated from the browser over Bluetooth.</li>
-            <li><strong>Web app:</strong> TypeScript and three.js, with a small server for accounts and sync.</li>
-            <li><strong>Licence:</strong> open hardware and open source. Build your own freely; if you share or sell one, credit the project and share your changes.</li>
-          </ul>
-          <div class="thumbs">
-            <img data-full="/img/full/paste.jpg" src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
-            <img data-full="/img/full/programming.jpg" src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="A board held in clamps with programming wires attached" />
-          </div>
+        <p class="section-lead">
+          Everything needed to make one is open source and in the repository. This page walks through it: order the board and
+          parts, solder them, flash the firmware once with a cheap RP2040 board, print the case and stick it on a disc.
+          After that first flash, firmware updates come over Bluetooth from the browser.
+        </p>
+        <ol class="toc">
+          <li><a href="#board">The board</a></li>
+          <li><a href="#parts">Parts</a></li>
+          <li><a href="#assemble">Order and assemble</a></li>
+          <li><a href="#flash">First flash</a></li>
+          <li><a href="#case">Case and mounting</a></li>
+          <li><a href="#cost">What it costs</a></li>
+        </ol>
+        <p class="fine">
+          Licence: open hardware and open source. Build your own freely; if you share or sell one, credit the project and share your changes.
+          <a href="https://github.com/hrafnkell/discyboi/blob/main/LICENSE.md">Details</a>.
+        </p>
+      </section>
+
+      <section id="board">
+        <h2>The board</h2>
+        <p class="section-lead">
+          A round 34&nbsp;mm, 4-layer board with a Fanstel BC15M Bluetooth module (nRF54L15) and two ST LSM6DSV320X motion
+          sensors, one at the centre and one 9&nbsp;mm out, so spin can be measured beyond the gyro's limit. It runs from a
+          CR2032 in a clip on the back.
+        </p>
+        <div class="shots two">
+          <figure class="shot">
+            <img data-full="/img/build/pcb-top.png" src="/img/build/pcb-top.png" width="984" height="984" loading="lazy" alt="Render of the board's top side: module, two motion sensors, regulator, SWD pads and battery pads" />
+            <figcaption><strong>Top.</strong> Everything here is reflowed. SWD pads (J2) at the top left, the module at the top with its antenna over the flat edge.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img data-full="/img/build/pcb-bottom.png" src="/img/build/pcb-bottom.png" width="984" height="984" loading="lazy" alt="Render of the board's bottom side with the round coin-cell pad and the two clip tabs" />
+            <figcaption><strong>Bottom.</strong> The coin-cell clip, soldered by hand after reflow. The round pad is the cell's negative contact.</figcaption>
+          </figure>
         </div>
         <div class="cta">
-          <a class="btn ghost" href="https://github.com/hrafnkell/discyboi">github.com/hrafnkell/discyboi</a>
+          <a class="btn ghost" href="https://github.com/hrafnkell/discyboi/tree/main/v4">KiCad project and full board notes</a>
+        </div>
+      </section>
+
+      <section id="parts">
+        <h2>Parts</h2>
+        <p class="section-lead">22 parts on top, the battery clip underneath. Everything is on Mouser; most of it is also at LCSC for JLCPCB assembly.</p>
+        <div class="scrollx">
+          <table class="bom">
+            <thead><tr><th>Ref</th><th class="qty">Qty</th><th>Part</th><th>MPN</th><th>LCSC</th></tr></thead>
+            <tbody>
+              <tr><td>U1</td><td class="qty">1</td><td>Bluetooth module, nRF54L15</td><td>Fanstel BC15M <span class="muted">(Mouser 308-BC15M)</span></td><td>–</td></tr>
+              <tr><td>U3, U5</td><td class="qty">2</td><td>Motion sensor, ±4000&nbsp;dps / ±16&nbsp;g / ±320&nbsp;g</td><td>ST LSM6DSV320XTR</td><td>–</td></tr>
+              <tr><td>U2</td><td class="qty">1</td><td>3.0&nbsp;V LDO, SOT-23</td><td>Microchip MCP1700T-3002E/TT</td><td>C62244</td></tr>
+              <tr><td>C22</td><td class="qty">1</td><td>100&nbsp;µF, 1206, X5R, ≥6.3&nbsp;V</td><td><span class="muted">e.g.</span> Samsung CL31A107MQHNNNE</td><td>C15008</td></tr>
+              <tr><td>C1</td><td class="qty">1</td><td>10&nbsp;µF, 0402, X5R, ≥6.3&nbsp;V</td><td><span class="muted">e.g.</span> Samsung CL05A106MQ5NUNC</td><td>C15525</td></tr>
+              <tr><td>C14</td><td class="qty">1</td><td>4.7&nbsp;µF, 0402, X5R, ≥6.3&nbsp;V</td><td><span class="muted">e.g.</span> Samsung CL05A475MP5NRNC</td><td>C23733</td></tr>
+              <tr><td>C11, C16, C17, C21</td><td class="qty">4</td><td>1&nbsp;µF, 0402, X5R, ≥6.3&nbsp;V</td><td><span class="muted">e.g.</span> Samsung CL05A105KA5NQNC</td><td>C52923</td></tr>
+              <tr><td>C2, C10, C12, C18–C20</td><td class="qty">6</td><td>100&nbsp;nF, 0402, X5R or X7R, ≥6.3&nbsp;V</td><td><span class="muted">e.g.</span> Samsung CL05B104KO5NNNC</td><td>C1525</td></tr>
+              <tr><td>R3, R4</td><td class="qty">2</td><td>10&nbsp;MΩ, 0402, 1% (battery sense)</td><td><span class="muted">e.g.</span> Yageo RC0402FR-0710ML</td><td>–</td></tr>
+              <tr><td>R5</td><td class="qty">1</td><td>1&nbsp;kΩ, 0402</td><td><span class="muted">e.g.</span> Yageo RC0402FR-071KL</td><td>C11702</td></tr>
+              <tr><td>R10</td><td class="qty">1</td><td>100&nbsp;kΩ, 0402</td><td><span class="muted">e.g.</span> Yageo RC0402FR-07100KL</td><td>C25741</td></tr>
+              <tr><td>D1</td><td class="qty">1</td><td>Yellow-green LED, 0603, ~570&nbsp;nm, V<sub>f</sub>&nbsp;≈&nbsp;2&nbsp;V</td><td><span class="muted">e.g.</span> Lite-On LTST-C191KGKT</td><td>C72043</td></tr>
+              <tr><td>BT1</td><td class="qty">1</td><td>CR2032 clip (bottom, by hand)</td><td>TE Linx BAT-HLD-003-SMT</td><td>–</td></tr>
+              <tr><td></td><td class="qty">1</td><td>CR2032 cell</td><td></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fine">
+          <strong>Passives are generic:</strong> any brand that meets the spec will do; the part numbers are just ones that fit.
+          Two catches: use a 6.3&nbsp;V or higher cap for the 100&nbsp;µF (a 4&nbsp;V one keeps far less of its capacitance at 3&nbsp;V), and a
+          yellow-green (AlInGaP) LED, not a "true green" one, which barely lights from 3&nbsp;V through 1&nbsp;kΩ.
+          The module, the sensors, the regulator and the clip must be the exact parts.
+        </p>
+        <p class="fine">
+          <strong>Leave empty:</strong> U4, R7, R8, R9, D2, D3 and C13 are a LiPo charger, only for a rechargeable build. Never fit them with a CR2032 in the clip.
+          The Bluetooth module, the motion sensors and the 10&nbsp;MΩ resistors have no LCSC code: for JLCPCB assembly, get them through JLCPCB's Global Sourcing or send them in as consigned parts.
+        </p>
+        <p class="fine">
+          <strong>Also needed:</strong> a CR2032 cell; for the case, 3 × M2 × 6&nbsp;mm countersunk screws and 3M VHB tape (0.6–1.1&nbsp;mm); for the first flash, an RP2040-Zero and four thin wires (see below).
+          J2 and the four square pads are bare copper, nothing to buy.
+        </p>
+        <div class="files">
+          <a class="file" href="https://github.com/hrafnkell/discyboi/raw/main/v4/jlcpcb/discyboi-gerbers.zip"><strong>Gerbers</strong><span>discyboi-gerbers.zip · for JLCPCB</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/blob/main/v4/discyboi-mouser-BOM.csv"><strong>Mouser BOM</strong><span>every fitted part, with MPNs</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/blob/main/v4/jlcpcb/discyboi-BOM.csv"><strong>JLCPCB BOM</strong><span>top-side parts, LCSC codes</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/blob/main/v4/jlcpcb/discyboi-CPL.csv"><strong>JLCPCB CPL</strong><span>placement file</span></a>
+        </div>
+      </section>
+
+      <section id="assemble">
+        <h2>Order and assemble</h2>
+        <ol class="steps-list">
+          <li>
+            <strong>Order the boards.</strong> Upload the gerbers to JLCPCB: <b>4 layers, 1.0&nbsp;mm thick</b> (the case assumes it), lead-free HASL
+            or ENIG, and a <b>top-side stencil, 0.10&nbsp;mm</b>. The minimum order is 5.
+          </li>
+          <li>
+            <strong>Paste and place.</strong> Stencil paste onto the top side and place the parts. The placement map shows where each one goes and
+            which way round, with tick-boxes as you go. The two motion sensors are 0.5&nbsp;mm pitch: press each one down level after placing it.
+          </li>
+          <li>
+            <strong>Reflow</strong> on a hot plate (the profile is in the placement map), then check the sensors and the module for bridges.
+            The BC15M is an LGA: it needs paste and reflow, an iron alone won't do.
+          </li>
+          <li>
+            <strong>Battery clip.</strong> Solder its two tabs on the bottom with an iron. Keep the round negative pad flat: leave it as delivered on HASL or ENIG.
+          </li>
+        </ol>
+        <div class="cta">
+          <a class="btn" href="./assembly.html">Open the placement map</a>
+        </div>
+        <div class="thumbs single">
+          <img data-full="/img/full/paste.jpg" src="/img/paste.jpg" width="1400" height="788" loading="lazy" alt="Solder paste applied to a bare discyboi board" />
+        </div>
+      </section>
+
+      <section id="flash">
+        <h2>First flash</h2>
+        <p class="section-lead">
+          A new board is flashed once over SWD. A <b>Waveshare RP2040-Zero</b> (a few dollars) running Raspberry Pi's debugprobe firmware
+          does the job; a Raspberry Pi Pico works the same way. After this, <b>updates come over Bluetooth</b>: connect the disc in the
+          <a href="../lab/">lab</a> and it offers new firmware when there is some.
+        </p>
+
+        <h3 class="sub">You need</h3>
+        <ul class="list tools">
+          <li><strong>RP2040-Zero</strong> (or a Pico) and a USB cable. <a href="https://www.waveshare.com/wiki/RP2040-Zero">Waveshare wiki</a></li>
+          <li><strong>debugprobe firmware:</strong> <code>debugprobe_on_pico.uf2</code> from <a href="https://github.com/raspberrypi/debugprobe/releases">raspberrypi/debugprobe releases</a>. It turns the RP2040 into a CMSIS-DAP probe.</li>
+          <li><strong>probe-rs</strong>, 0.32 or newer (it knows the nRF54L15). <a href="https://probe.rs/docs/getting-started/installation/">Install probe-rs</a></li>
+          <li><strong>The firmware:</strong> <a href="https://github.com/hrafnkell/discyboi/releases/latest/download/discyboi-full.hex">discyboi-full.hex</a>, the bootloader and the app in one file, from the latest <a href="https://github.com/hrafnkell/discyboi/releases">firmware release</a>.</li>
+          <li>Four thin wires (30&nbsp;AWG) and a fine soldering tip, or a Tag-Connect TC2030-CTX-NL cable.</li>
+        </ul>
+
+        <h3 class="sub">Wiring</h3>
+        <div class="flashgrid">
+          <div>
+            <p class="section-lead">J2 is the six-pad SWD footprint at the top left of the top side. Seen from the top, flat edge up:</p>
+            <pre class="pads">  (2) SWDIO   (4) SWDCLK   (6) –
+  (1) +3V0    (3) NRESET   (5) GND</pre>
+            <div class="scrollx">
+              <table class="bom wiring">
+                <thead><tr><th>RP2040-Zero</th><th>J2 pad</th><th>Signal</th></tr></thead>
+                <tbody>
+                  <tr><td>GP2</td><td>4</td><td>SWDCLK</td></tr>
+                  <tr><td>GP3</td><td>2</td><td>SWDIO</td></tr>
+                  <tr><td>GND</td><td>5</td><td>GND</td></tr>
+                  <tr><td>3V3</td><td>1</td><td>+3V0, <b>only with no cell in the clip</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="fine">
+              Power the board from the RP2040 or from a coin cell, never both: the 3.3&nbsp;V would feed back into the CR2032.
+              NRESET isn't needed. The GP numbers are the ones printed on the RP2040-Zero, the same pins a Pico uses (Pico pins 4 and 5).
+            </p>
+          </div>
+          <figure class="shot">
+            <img data-full="/img/full/programming.jpg" src="/img/programming.jpg" width="1400" height="788" loading="lazy" alt="An RP2040-Zero wired to the board's SWD pads with four thin wires, held in helping hands" />
+            <figcaption><strong>Bring-up.</strong> An RP2040-Zero wired to J2 with four thin wires.</figcaption>
+          </figure>
         </div>
 
-        <h3 class="sub">What it costs</h3>
+        <h3 class="sub">Flash it</h3>
+        <ol class="steps-list">
+          <li>Hold the RP2040-Zero's <b>BOOT</b> button while plugging it in. It shows up as a drive: copy <code>debugprobe_on_pico.uf2</code> onto it. It restarts as a debug probe.</li>
+          <li>Wire it to J2 as above, with no cell in the clip.</li>
+          <li>
+            Run, in the folder with <code>discyboi-full.hex</code>:
+            <pre class="code">probe-rs erase --chip nRF54L15 --allow-erase-all      # once: a new nRF54L15 is locked
+probe-rs download --chip nRF54L15 --binary-format hex discyboi-full.hex
+probe-rs reset --chip nRF54L15</pre>
+          </li>
+          <li>The green LED blinks <b>3 times</b>: both motion sensors answered. Ten fast blinks means one didn't: check its solder joints.</li>
+          <li>Unplug the probe, remove the wires, put a CR2032 in and open the <a href="../lab/">lab</a> in Chrome or Edge. <b>Connect disc</b> finds it as <i>discyboi</i>.</li>
+        </ol>
+        <p class="note">
+          <strong>From here on, updates are over Bluetooth.</strong> When there's newer firmware, the lab shows <b>Update firmware</b> next to the
+          Connect button. The image is checked and signed, and if anything goes wrong the disc keeps the firmware it has.
+          (If you build the firmware yourself with <code>firmware/build.sh</code>, flash your own <code>merged.hex</code> instead: your board will then only take
+          updates signed with your key, so the lab's updates won't apply to it.)
+        </p>
+      </section>
+
+      <section id="case">
+        <h2>Case and mounting</h2>
+        <div class="build">
+          <ul class="list">
+            <li><strong>Print</strong> the base and lid in PETG or TPU (not PLA, it cracks in the cold): 0.2&nbsp;mm layers, 4 perimeters, 100&nbsp;% infill, no supports. A translucent base lets the LED show through.</li>
+            <li><strong>Screws:</strong> 3 × M2 × 6&nbsp;mm countersunk. They self-tap into the base; drive them gently.</li>
+            <li><strong>Board:</strong> components face the disc, battery faces the ground. In the lab, set the board mount to <b>Face up</b>.</li>
+            <li><strong>Mount:</strong> clean the flight plate with isopropyl alcohol and stick the base on with 3M VHB tape (0.6–1.1&nbsp;mm). Centre it with the jig: the sight finds the injection mark in the middle of the disc, so it works on any disc.</li>
+          </ul>
+          <figure class="shot">
+            <img data-full="/img/build/case-exploded.png" src="/img/build/case-exploded.png" width="1000" height="800" loading="lazy" alt="Exploded render of the case: domed lid, board with coin cell, and base" />
+          </figure>
+        </div>
+        <div class="files">
+          <a class="file" href="https://github.com/hrafnkell/discyboi/raw/main/v4/enclosure/stl/base.stl"><strong>base.stl</strong><span>glued to the disc</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/raw/main/v4/enclosure/stl/lid_coin.stl"><strong>lid_coin.stl</strong><span>battery door</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/raw/main/v4/enclosure/stl/jig_dimple.stl"><strong>jig_dimple.stl</strong><span>centring jig, any disc</span></a>
+          <a class="file" href="https://github.com/hrafnkell/discyboi/raw/main/v4/enclosure/stl/sight.stl"><strong>sight.stl</strong><span>finds the injection mark</span></a>
+        </div>
+        <p class="fine">OpenSCAD source, the rim-centring jig and the LiPo version are in <a href="https://github.com/hrafnkell/discyboi/tree/main/v4/enclosure">v4/enclosure</a>.</p>
+      </section>
+
+      <section id="cost">
+        <h2>What it costs</h2>
         <p class="section-lead">Roughly US$30–35 in parts per tracker. The two motion sensors and the Bluetooth module are most of it.</p>
         <div class="scrollx">
           <table class="cost">

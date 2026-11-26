@@ -61,6 +61,7 @@ probe-rs reset --chip nRF54L15
 probe-rs attach --chip nRF54L15 build/app/zephyr/zephyr.elf               # RTT log
 ```
 
+- No build needed for a new board: each firmware release on GitHub carries `merged.hex` as [discyboi-full.hex](https://github.com/hrafnkell/discyboi/releases/latest/download/discyboi-full.hex). A board flashed with it takes the updates the web app offers. (One flashed with your own build only takes images signed with your key.)
 - Flash **merged.hex**: it holds MCUboot and the *signed* app. MCUboot refuses an unsigned image, so `probe-rs run …/zephyr.elf` flashes a board that never starts the app.
 - `probe-rs info` reports `debug entry not present` on the two memory APs even after unlocking. That's normal for this chip. To check that it's unlocked, read the erased flash with `probe-rs read --chip nRF54L15 b32 0x0 4`, which should return `ffffffff`.
 - probe-rs warns that RTT channels 1 and 2 aren't initialised. The log is on channel 0, so ignore it.
@@ -85,7 +86,8 @@ Once MCUboot is on the board, the app is updated over Bluetooth and the debug le
 
 **From the web app (the usual way):**
 1. Commit, then build. `build.sh` stamps the commit into the image, and `release.sh` refuses a build made from uncommitted changes.
-2. `./release.sh` copies the signed image and a small `manifest.json` (version, file name, size, SHA-256) to the web app's host, into `firmware/` next to the server. The server serves them under `/firmware/`.
+2. Push, then `./release.sh`. It copies the signed image, `merged.hex` and a small `manifest.json` (version, file name, size, SHA-256) to the web app's host, into `firmware/` next to the server. The server serves them under `/firmware/`.
+3. It also creates the GitHub release `firmware-v<version>` on that commit, with the signed image, `merged.hex` and the same as `discyboi-full.hex` (the build page links `releases/latest/download/discyboi-full.hex`). Rebuilding a version moves its tag and replaces the files. It needs the `gh` CLI, logged in; `NO_GITHUB=1` skips this step. The web app can't update from GitHub directly: its downloads don't allow cross-origin requests.
 3. Connect the disc in the web app. If the published version is newer than the disc's, or the same number from a different commit, an **Update firmware** button appears next to Connect. It uploads the image, marks it to be tried once, restarts the disc, reconnects and checks the version the disc then reports. It takes a minute or two; keep the page open and the disc close.
 
 The app refuses to start an update below 2.6 V, because a tired coin cell can sag too far while the disc writes flash. Bump `app/VERSION` for anything you publish: after changing it, build with `./build.sh pristine`.
@@ -204,7 +206,7 @@ app/src/led.c             status LED
 test/                     host test: synthetic throws through analysis.c (`make -C test`)
                           `make -C test replay && test/replay throw.bin …` runs it on raw captures saved by the web app,
                           oldest first, learning the cross-axis coupling across them (-n: no correction, -k kx,ky: fixed)
-release.sh                publish the built image to the web app's host (see Updates over Bluetooth)
+release.sh                publish the build to the web app's host and as a GitHub release (see Updates over Bluetooth)
 ```
 
 ## Bring-up TODO

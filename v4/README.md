@@ -171,9 +171,10 @@ Notes for the LiPo build:
     - **OSP** (free) is flat, but assemble within a few months. Tin the battery pad after reflow (flux and solder, then wick it thin and flat), because bare copper oxidises.
   - Order a **top-side** stencil only, 0.10 mm thick.
   - The stencil also has apertures for the unfitted charger pads. The paste just tins those pads, which is harmless and handy if you fit the charger later.
-- **JLC assembly (optional):** `jlcpcb/discyboi-BOM.csv` + `discyboi-CPL.csv` cover only the fitted top-side parts. Unfitted parts and the battery clip are left out.
-  - **The LSM6DSV320X and the 10 M resistors have no LCSC code.** Source them separately or as consigned parts.
-- **Mouser:** `discyboi-mouser-BOM.csv` lists every fitted part with its MPN, including the BC15M (308-BC15M) and the BAT-HLD-003-SMT clip.
+- **JLC assembly (optional):** `jlcpcb/discyboi-BOM.csv` + `discyboi-CPL.csv` cover all fitted top-side parts, the BC15M included. Unfitted parts and the battery clip are left out.
+  - **The BC15M, the LSM6DSV320X and the 10 M resistors have no LCSC code.** Get them through JLCPCB's Global Sourcing (from Mouser / DigiKey) or send them as consigned parts. The BC15M is an LGA: ask for X-ray inspection.
+- **Generic passives:** the caps, resistors and LED can be any brand that meets the spec in the Mouser BOM's Substitute column (the MPNs are examples). Mind the 100 µF (6.3 V or more, X5R) and the LED (yellow-green AlInGaP, Vf ≈ 2 V: an InGaN "true green" barely lights from 3 V through 1 k). U1, U2, U3/U5 and BT1 must be the exact parts.
+- **Mouser:** `discyboi-mouser-BOM.csv` lists every fitted part with its MPN, including the BC15M (Mouser 308-BC15M) and the BAT-HLD-003-SMT clip. Not in any BOM: the CR2032 itself, and for the case 3 × M2 × 6 mm countersunk screws and VHB tape.
   - For a rechargeable build, also buy U4 MCP73831T-2ACI/OT, R8 1 k, D2 (LTST-C191KRKT), C13 4.7 µF, D3 ESD5Z5.0T1G and R9 100 k.
   - R7 depends on the cell: 10 k (RC0402FR-0710KL, 100 mA) for a 150 mAh LiPo, or 47 k (RC0402FR-0747KL, 21 mA) for a LIR2032.
 - **Assembly order:**

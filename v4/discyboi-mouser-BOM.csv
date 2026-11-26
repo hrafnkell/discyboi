@@ -1,14 +1,14 @@
-Quantity,Manufacturer,Manufacturer Part Number,Reference Designators,Value,Footprint
-1,Fanstel,BC15M,U1,BC15M (Mouser 308-BC15M),Fanstel_BC15M
-1,TE Connectivity Linx,BAT-HLD-003-SMT,BT1,CR2032,Linx_BAT-HLD-003-SMT
-1,Samsung,CL05A106MQ5NUNC,C1,10u,C_0402_1005Metric
-6,Samsung,CL05B104KO5NNNC,C2 C10 C12 C18 C19 C20,100n,C_0402_1005Metric
-4,Samsung,CL05A105KA5NQNC,C11 C16 C17 C21,1u,C_0402_1005Metric
-1,Samsung,CL05A475MP5NRNC,C14,4.7u,C_0402_1005Metric
-1,Samsung,CL31A107MQHNNNE,C22,100u,C_1206_3216Metric
-1,Lite-On,LTST-C191KGKT,D1,Green,LED_0603_1608Metric
-2,Yageo,RC0402FR-0710ML,R3 R4,10M,R_0402_1005Metric
-1,Yageo,RC0402FR-071KL,R5,1k,R_0402_1005Metric
-1,Yageo,RC0402FR-07100KL,R10,100k,R_0402_1005Metric
-1,Microchip,MCP1700T-3002E/TT,U2,MCP1700T-3002E/TT,SOT-23
-2,STMicroelectronics,LSM6DSV320XTR,U3 U5,LSM6DSV320XTR,LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y
+Quantity,Manufacturer,Manufacturer Part Number,Reference Designators,Value,Footprint,Substitute
+1,TE Connectivity Linx,BAT-HLD-003-SMT,BT1,CR2032,Linx_BAT-HLD-003-SMT,Exact part
+1,Samsung,CL05A106MQ5NUNC,C1,10u,C_0402_1005Metric,"Any equivalent: 10uF 0402 X5R, 6.3V or more"
+6,Samsung,CL05B104KO5NNNC,C2 C10 C12 C18 C19 C20,100n,C_0402_1005Metric,"Any equivalent: 100nF 0402 X5R/X7R, 6.3V or more"
+4,Samsung,CL05A105KA5NQNC,C11 C16 C17 C21,1u,C_0402_1005Metric,"Any equivalent: 1uF 0402 X5R, 6.3V or more"
+1,Samsung,CL05A475MP5NRNC,C14,4.7u,C_0402_1005Metric,"Any equivalent: 4.7uF 0402 X5R, 6.3V or more"
+1,Samsung,CL31A107MQHNNNE,C22,100u,C_1206_3216Metric,"Any equivalent: 100uF 1206 X5R, 6.3V or more (not 4V: keeps far less capacitance at 3V)"
+1,Lite-On,LTST-C191KGKT,D1,Green,LED_0603_1608Metric,"Any equivalent: 0603 yellow-green AlInGaP LED, ~570nm, Vf ~2V (not InGaN 525nm green: too dim at 3V)"
+2,Yageo,RC0402FR-0710ML,R3 R4,10M,R_0402_1005Metric,Any equivalent: 10M 0402 1% (battery sense divider)
+1,Yageo,RC0402FR-071KL,R5,1k,R_0402_1005Metric,"Any equivalent: 1k 0402, any tolerance"
+1,Yageo,RC0402FR-07100KL,R10,100k,R_0402_1005Metric,"Any equivalent: 100k 0402, any tolerance"
+1,Fanstel,BC15M,U1,BC15M,Fanstel_BC15M,Exact part
+1,Microchip,MCP1700T-3002E/TT,U2,MCP1700T-3002E/TT,SOT-23,Exact part
+2,STMicroelectronics,LSM6DSV320XTR,U3 U5,LSM6DSV320XTR,LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y,Exact part
