@@ -230,11 +230,140 @@ static void q_step(struct quat *q, const float w[3])
 	}
 }
 
+/* Body rates in dps with the gyro's cross-axis coupling removed: the x and y axes pick up a
+ * fixed fraction (~1 % on the first board) of the spin rate, which otherwise reads as a ~1 deg
+ * tilt that turns with the disc: fake wobble, and hyzer / nose off by up to that much. */
+static void sample_rates_dps(const struct capture_view *cap, const struct sample *s, float w[3])
+{
+	w[2] = sample_spin_dps(s, cap->rim_radius_m, NULL);
+	w[0] = s->gyro[0] * IMU_GYRO_DPS_PER_LSB - cap->gyro_xz[0] * w[2];
+	w[1] = s->gyro[1] * IMU_GYRO_DPS_PER_LSB - cap->gyro_xz[1] * w[2];
+}
+
 static void sample_rate_rad(const struct capture_view *cap, const struct sample *s, float w[3])
 {
-	w[0] = s->gyro[0] * IMU_GYRO_DPS_PER_LSB / DEG;
-	w[1] = s->gyro[1] * IMU_GYRO_DPS_PER_LSB / DEG;
-	w[2] = sample_spin_dps(s, cap->rim_radius_m, NULL) / DEG;
+	sample_rates_dps(cap, s, w);
+	for (int k = 0; k < 3; k++) {
+		w[k] /= DEG;
+	}
+}
+
+/* Solve the 4x4 system m x = y in place (Gaussian elimination, partial pivoting). */
+static bool solve4(float m[4][4], float y[4], float x[4])
+{
+	for (int c = 0; c < 4; c++) {
+		int p = c;
+
+		for (int r = c + 1; r < 4; r++) {
+			if (fabsf(m[r][c]) > fabsf(m[p][c])) {
+				p = r;
+			}
+		}
+		if (fabsf(m[p][c]) < 1e-9f) {
+			return false;
+		}
+		for (int k = 0; k < 4; k++) {
+			float t = m[c][k];
+
+			m[c][k] = m[p][k];
+			m[p][k] = t;
+		}
+		float t = y[c];
+
+		y[c] = y[p];
+		y[p] = t;
+		for (int r = c + 1; r < 4; r++) {
+			float f = m[r][c] / m[c][c];
+
+			for (int k = c; k < 4; k++) {
+				m[r][k] -= f * m[c][k];
+			}
+			y[r] -= f * y[c];
+		}
+	}
+	for (int c = 3; c >= 0; c--) {
+		float acc = y[c];
+
+		for (int k = c + 1; k < 4; k++) {
+			acc -= m[c][k] * x[k];
+		}
+		x[c] = acc / m[c][c];
+	}
+	return true;
+}
+
+#define XZ_IMPACT_G   6.0f   /* the free spin ends at the first hit (net, ground) */
+#define XZ_MIN_TURNS  0.9f
+#define XZ_MAX        0.05f  /* 3 deg: anything bigger is not a gyro property */
+
+bool analysis_gyro_xz(const struct capture_view *cap, float k[2])
+{
+	/* After release the disc spins freely: in the board frame the gyro's x, y read
+	 *   g_xy = k * w_z  (coupling: fixed in the board frame)
+	 *        + R(-phi) m (nutation, precession: fixed in the world, so they turn with the spin)
+	 * Fit k and m by least squares, with phi the spin angle. Real mount tilt looks like k too,
+	 * but on the first board it is a few tenths of a degree, and removing it makes the tracked
+	 * z follow the spin axis, which is the disc normal we want anyway. */
+	float m[4][4] = {0}, y[4] = {0}, x[4];
+	float phi = 0;
+	int end = cap->len;
+
+	for (int i = cap->release_idx + SPIN_AVG_N; i < cap->len; i++) {
+		float a[3];
+
+		sample_centre_acc_g(capture_get(i), a);
+		if (dot3(a, a) > XZ_IMPACT_G * XZ_IMPACT_G) {
+			end = i - IMU_ACTIVE_HZ / 200; /* back off 5 ms */
+			break;
+		}
+	}
+	for (int i = cap->release_idx + SPIN_AVG_N; i < end; i++) {
+		const struct sample *s = capture_get(i);
+		float wz = sample_spin_dps(s, cap->rim_radius_m, NULL) / DEG;
+		float gx = s->gyro[0] * IMU_GYRO_DPS_PER_LSB / DEG, gy = s->gyro[1] * IMU_GYRO_DPS_PER_LSB / DEG;
+
+		phi += wz * DT;
+		float c = cosf(phi), sn = sinf(phi);
+		/* rows: gx = wz kx + c mx + s my ;  gy = wz ky - s mx + c my */
+		const float rx[4] = {wz, 0, c, sn}, ry[4] = {0, wz, -sn, c};
+
+		for (int r = 0; r < 4; r++) {
+			for (int q = 0; q < 4; q++) {
+				m[r][q] += rx[r] * rx[q] + ry[r] * ry[q];
+			}
+			y[r] += rx[r] * gx + ry[r] * gy;
+		}
+	}
+	if (fabsf(phi) < XZ_MIN_TURNS * 2 * 3.14159265f || !solve4(m, y, x)) {
+		return false;
+	}
+	if (fabsf(x[0]) > XZ_MAX || fabsf(x[1]) > XZ_MAX) {
+		return false;
+	}
+	k[0] = x[0];
+	k[1] = x[1];
+	return true;
+}
+
+#define XZ_LEARN_N    16      /* plain mean up to here, then a moving average over ~this many */
+#define XZ_LEARN_GATE 0.02f   /* once settled, ignore throws more than ~1.1 deg off */
+
+void xz_learn_add(struct xz_learn *l, const float k[2])
+{
+	if (l->n >= XZ_LEARN_MIN && hypotf(k[0] - l->k[0], k[1] - l->k[1]) > XZ_LEARN_GATE) {
+		return;
+	}
+	if (l->n < XZ_LEARN_N) {
+		l->n++;
+	}
+	for (int i = 0; i < 2; i++) {
+		l->k[i] += (k[i] - l->k[i]) / l->n;
+	}
+}
+
+bool xz_learn_ready(const struct xz_learn *l)
+{
+	return l->n >= XZ_LEARN_MIN;
 }
 
 void analysis_run(const struct capture_view *cap, struct throw_result *out)
@@ -263,10 +392,10 @@ void analysis_run(const struct capture_view *cap, struct throw_result *out)
 	int n_w = 0;
 
 	for (int i = cap->release_idx + SPIN_AVG_N; i < cap->len; i++) {
-		const struct sample *s = capture_get(i);
-		float gx = s->gyro[0] * IMU_GYRO_DPS_PER_LSB, gy = s->gyro[1] * IMU_GYRO_DPS_PER_LSB;
+		float w[3];
 
-		w2 += gx * gx + gy * gy;
+		sample_rates_dps(cap, capture_get(i), w);
+		w2 += w[0] * w[0] + w[1] * w[1];
 		n_w++;
 	}
 	if (n_w) {

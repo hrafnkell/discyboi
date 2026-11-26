@@ -26,6 +26,9 @@ struct capture_view {
 	uint16_t pull_idx;     /* first sample of the pull (centre accel > PULL_G) */
 	uint16_t release_idx;  /* first sample after release */
 	float rim_radius_m;
+	/* Gyro cross-axis coupling: how much of the true z (spin) rate the gyro reports on x and y.
+	 * Subtracted before use. Learned from throws (struct xz_learn), 0 until then. */
+	float gyro_xz[2];
 };
 
 const struct sample *capture_get(uint16_t i);
@@ -57,6 +60,20 @@ struct throw_result {
 
 void analysis_run(const struct capture_view *cap, struct throw_result *out);
 
+/* This throw's estimate of the gyro cross-axis coupling (see capture_view.gyro_xz), from the
+ * free spin between release and impact. False when that was too short to tell (under ~1 turn). */
+bool analysis_gyro_xz(const struct capture_view *cap, float k[2]);
+
+/* Running estimate of the coupling over many throws: a mean that turns into a slow moving
+ * average, ignoring throws far off the current value once it has settled. */
+struct xz_learn {
+	float k[2];
+	uint16_t n;
+};
+#define XZ_LEARN_MIN 3  /* throws before the estimate is used */
+void xz_learn_add(struct xz_learn *l, const float k[2]);
+bool xz_learn_ready(const struct xz_learn *l);
+
 /* Spin rate in dps about the board z axis for one sample: gyro, or centripetal estimate
  * from the rim IMU when the gyro is saturated. *centrip is set when the estimate was used. */
 float sample_spin_dps(const struct sample *s, float rim_radius_m, bool *centrip);
@@ -84,6 +101,10 @@ extern const char discy_fw_version[];  /* "0.2.0+<git commit>" */
 int ble_init(void);
 void ble_publish_result(const struct throw_result *r);
 void ble_publish_status(void);
+
+/* calib.c: per-board calibration in flash */
+int calib_load_xz(struct xz_learn *l);
+void calib_save_xz(const struct xz_learn *l);
 
 /* battery.c */
 int battery_init(void);

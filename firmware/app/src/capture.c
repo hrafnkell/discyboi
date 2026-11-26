@@ -10,6 +10,7 @@
  */
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -54,6 +55,8 @@ static uint32_t ring_n;        /* samples written since the ring was last reset 
 static uint32_t armed_n;       /* ring_n when the IMUs last woke: older samples are stale */
 static uint32_t frozen_end;    /* ring_n when the current capture was frozen */
 static struct capture_view frozen;
+/* Gyro cross-axis coupling learned from throws, kept in flash (calib.c) across reboots. */
+static struct xz_learn xz;
 static bool have_capture;
 static atomic_t locked;
 static uint32_t throws;
@@ -268,6 +271,25 @@ static void sampler(void *a, void *b, void *c)
 			frozen.release_idx = release_n - start;
 			have_capture = true;
 
+			/* Correct the gyro with what earlier throws taught us, then learn from this one. */
+			if (xz_learn_ready(&xz)) {
+				frozen.gyro_xz[0] = xz.k[0];
+				frozen.gyro_xz[1] = xz.k[1];
+			}
+			float k[2];
+
+			if (analysis_gyro_xz(&frozen, k)) {
+				struct xz_learn before = xz;
+
+				xz_learn_add(&xz, k);
+				if (memcmp(&before, &xz, sizeof(xz))) {
+					calib_save_xz(&xz);
+				}
+				LOG_INF("gyro cross-axis: this throw %d/%d, learned %d/%d (x1e-4, %u throws)",
+					(int)(k[0] * 1e4f), (int)(k[1] * 1e4f), (int)(xz.k[0] * 1e4f),
+					(int)(xz.k[1] * 1e4f), xz.n);
+			}
+
 			memset(&res, 0, sizeof(res));
 			res.throw_id = throws;
 			res.peak_dg = (uint16_t)MIN(peak_g * 10.0f, UINT16_MAX);
@@ -317,6 +339,7 @@ int capture_start(void)
 	gpio_init_callback(&drdy_cb, drdy_isr, BIT(imu_c.int1.pin));
 	gpio_add_callback_dt(&imu_c.int1, &drdy_cb);
 
+	calib_load_xz(&xz);
 	set_mode(IMU_MODE_IDLE);
 	k_thread_create(&sampler_thread, sampler_stack, K_THREAD_STACK_SIZEOF(sampler_stack), sampler,
 			NULL, NULL, NULL, K_PRIO_PREEMPT(2), 0, K_NO_WAIT);

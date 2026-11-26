@@ -132,6 +132,10 @@ It also measures:
 - **wobble:** the RMS of off-axis rotation over the 0.5 s after release.
 - **peak g** and **pull duration**.
 
+**Gyro cross-axis correction.** The gyro's x and y axes pick up a small fixed fraction of the spin rate (about 1.2 % on x on the first board, measured from its throws). Uncorrected, that reads as a ~1° tilt turning with the disc, which shifts hyzer and nose by up to 1–2° depending on where in the spin the disc is released. The coupling is a property of the chip, so every board learns its own:
+- After each throw, the free spin between release and the first impact is fitted as coupling (fixed in the board) plus nutation and precession (which turn with the spin). That needs at least 0.9 turns, so most forehands into a net qualify, short backhands don't, and throws in open air always do.
+- A running estimate (mean, then a moving average over ~16 throws, ignoring throws more than ~1° off once settled) is applied from the third such throw on, to the gyro before orientation tracking and wobble.
+- It's kept in the storage partition (`src/calib.c`, ZMS), so it survives reboots, battery swaps and firmware updates.
 There is no magnetometer, so compass heading is unknown, but none of the outputs need it.
 
 ### Known limitations
@@ -142,7 +146,7 @@ There is no magnetometer, so compass heading is unknown, but none of the outputs
 - **Drift:** integration drift grows with the time between the calm stretch and release.
 - **Rim spin bias:** while the disc spins up during the pull, tangential acceleration slightly inflates the rim IMU's spin estimate. This mostly affects the orientation during the pull.
 - **Timing:** sample timing assumes exactly 960 Hz. The IMU's ODR is only good to a few percent unless it's corrected with `INTERNAL_FREQ_FINE` or high-accuracy ODR mode.
-- **Mounting:** the firmware assumes the board's z axis is the disc's spin axis and the centre IMU is on it.
+- **Mounting:** the firmware assumes the board's z axis is the disc's spin axis and the centre IMU is on it. On the first board's recorded throws the centre IMU sat ~0.7 mm from the spin axis (0.5 mm of it by design: U5 is 0.5 mm off the board centre), which changes speed by under 0.1 m/s, and the board was tilted only 0.1–0.3°. The cross-axis correction also removes a real tilt, as long as it's small.
 
 ## BLE
 
@@ -192,12 +196,14 @@ app/boards/discyboi/      board definition (pins from v4/gen/design.py)
 app/dts/bindings/         devicetree binding for the IMUs
 app/src/imu.c             LSM6DSV320X register driver (SPI)
 app/src/capture.c         sampling thread + throw state machine
-app/src/analysis.c        release speed / angles / spin / wobble
+app/src/analysis.c        release speed / angles / spin / wobble, gyro cross-axis estimate
+app/src/calib.c           per-board calibration kept in flash (ZMS, storage partition)
 app/src/ble.c             GATT service, raw download
 app/src/battery.c         VBAT via AIN2, Battery Service
 app/src/led.c             status LED
 test/                     host test: synthetic throws through analysis.c (`make -C test`)
-                          `make -C test replay && test/replay throw.bin …` runs it on raw captures saved by the web app
+                          `make -C test replay && test/replay throw.bin …` runs it on raw captures saved by the web app,
+                          oldest first, learning the cross-axis coupling across them (-n: no correction, -k kx,ky: fixed)
 release.sh                publish the built image to the web app's host (see Updates over Bluetooth)
 ```
 

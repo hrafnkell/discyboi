@@ -63,6 +63,7 @@ struct throw_spec {
 	double gyro_noise_dps, acc_noise_g;
 	int approx;  /* expect the calmest-window fallback, flagged approximate */
 	double slack; /* tolerance multiplier, 0 = 1 */
+	double xz;    /* gyro cross-axis coupling to simulate on x (fraction of the z rate) */
 };
 
 static int run(const struct throw_spec *t)
@@ -95,7 +96,8 @@ static int run(const struct throw_spec *t)
 		double nz = ((rand() / (double)RAND_MAX) - 0.5) * 2;
 		struct sample *s = &buf[i];
 		for (int k = 0; k < 3; k++) {
-			double gyro = (k == 2 ? w * 180 / M_PI : 0) + t->gyro_noise_dps * nz;
+			double gyro = (k == 2 ? w * 180 / M_PI : 0) + (k == 0 ? t->xz * w * 180 / M_PI : 0) +
+				      t->gyro_noise_dps * nz;
 			s->gyro[k] = q16(gyro, IMU_GYRO_DPS_PER_LSB, 4000);
 			s->acc[k] = q16(fs[k] + t->acc_noise_g * nz, IMU_ACC_G_PER_LSB, 16);
 			s->hg[k] = q16(fs[k], IMU_HG_G_PER_LSB, 320);
@@ -111,6 +113,21 @@ static int run(const struct throw_spec *t)
 	struct capture_view cap = {.throw_id = 1, .len = CAPTURE_LEN, .pull_idx = pull_idx,
 				   .release_idx = release_idx, .rim_radius_m = r_rim};
 	struct throw_result r = {0};
+	if (t->xz != 0) {
+		/* Without the correction the coupling tilts the result; learn it from the flight, then fix. */
+		struct throw_result raw = {0};
+		float k[2] = {0};
+		analysis_run(&cap, &raw);
+		int got = analysis_gyro_xz(&cap, k);
+		printf("     uncorrected: hyzer %+.2f  nose %+.2f  wobble %u | coupling found %+.4f %+.4f (sim %+.4f)\n",
+		       raw.hyzer_cdeg / 100.0 - t->hyzer, raw.nose_cdeg / 100.0 - t->nose, raw.wobble_dps, k[0], k[1], t->xz);
+		if (!got || fabs(k[0] - t->xz) > 0.001 || fabs(k[1]) > 0.001) {
+			printf("FAIL %s: coupling not recovered\n", t->name);
+			return 0;
+		}
+		cap.gyro_xz[0] = k[0];
+		cap.gyro_xz[1] = k[1];
+	}
 	analysis_run(&cap, &r);
 
 	double e_speed = r.speed_cms / 100.0 - t->speed, e_h = r.hyzer_cdeg / 100.0 - t->hyzer,
@@ -139,6 +156,8 @@ int main(void)
 		{"drive with sensor noise", 22, 12, -4, 8, 900, 1.0, 0.003},
 		{"shaky hold (averaged over the span)", 22, 12, -4, 8, 900, 80.0, 0.05, 0, 2},
 		{"never calm (calmest 100 ms)", 22, 12, -4, 8, 900, 250.0, 0.05, 1, 6},
+		{"forehand-ish, gyro cross-axis 1.5 %", 20, -5, 3, 8, 600, 1.0, 0.003, 0, 0, -0.015},
+		{"drive, gyro cross-axis 1.5 % (saturated)", 22, 12, -4, 8, 900, 1.0, 0.003, 0, 0, -0.015},
 	};
 	int pass = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++) pass += run(&cases[i]);

@@ -12,6 +12,7 @@ target_sources(app PRIVATE
   src/imu.c
   src/capture.c
   src/analysis.c
+  src/calib.c
   src/ble.c
   src/battery.c
   src/led.c
