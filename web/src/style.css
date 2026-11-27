@@ -153,6 +153,8 @@ input[type='range'] { width: 100%; accent-color: var(--accent); margin: 4px 0 0;
 .history .x { border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 2px; }
 .history .x:hover { color: var(--err); }
 .history input[type='checkbox'] { accent-color: var(--accent); }
+.history li.divider { cursor: default; background: none; border: 0; padding: 6px 2px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.history li.divider:hover { background: none; }
 
 /* ---------------------------------------------------------------- bottom: stats + playback */
 .bottom {
@@ -169,6 +171,16 @@ input[type='range'] { width: 100%; accent-color: var(--accent); margin: 4px 0 0;
 .stat b { display: block; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat span { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .stat.big b { font-size: 28px; color: var(--accent); line-height: 1.05; }
+.throwline {
+  display: none; flex-wrap: wrap; justify-content: center; gap: 4px 14px; align-self: center;
+  background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.throwline b { color: var(--text); font-size: 14px; }
+.throwline .style { color: var(--accent); font-weight: 600; }
+.throwline:empty { display: none !important; }
+/* Shown when the throw panel (with the same numbers) is out of the way. */
+body.hide-left .throwline { display: flex; }
 .playbar {
   display: flex; align-items: center; gap: 10px;
   background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px;

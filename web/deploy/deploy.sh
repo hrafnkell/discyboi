@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Build the web app and deploy it with its server to a host running a systemd user service.
-#   deploy/deploy.sh [user@host] [remote dir]      (defaults: hrafnkell@192.168.1.91 ~/srv/discyboi)
+#   deploy/deploy.sh [user@host] [remote dir]
+# Defaults come from DEPLOY_HOST and DEPLOY_DIR in the repo's .env (git-ignored; see .env.example).
 # The database (data/) and .env on the host are never touched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-HOST=${1:-hrafnkell@192.168.1.91}
-DIR=${2:-srv/discyboi}
+[ -f ../.env ] && . ../.env
+HOST=${1:-${DEPLOY_HOST:-}}
+DIR=${2:-${DEPLOY_DIR:-srv/discyboi}}
+[ -n "$HOST" ] || { echo "deploy: no host: set DEPLOY_HOST in .env (see .env.example) or pass user@host" >&2; exit 1; }
 
 bun run build
 ssh "$HOST" "mkdir -p ~/$DIR/data ~/.config/systemd/user"

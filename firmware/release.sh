@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Publish the built firmware to the web app's host. The app then offers it to any connected
 # disc that runs something older ("Update firmware" next to the Connect button).
-#   ./release.sh [user@host] [remote dir]      (defaults: hrafnkell@192.168.1.91 ~/srv/discyboi)
+#   ./release.sh [user@host] [remote dir]
+# Defaults come from DEPLOY_HOST and DEPLOY_DIR in the repo's .env (git-ignored; see .env.example).
 # It also makes a GitHub release, tag firmware-v<version> on the build's commit, with the same
 # files (needs the gh CLI, logged in; NO_GITHUB=1 skips it). The web app can't update from there
 # (GitHub's downloads don't allow cross-origin fetches), but builders get the first-flash image at
@@ -12,11 +13,13 @@
 # flashed with it take the published updates. The signing key never leaves keys/.
 set -euo pipefail
 cd "$(dirname "$0")"
-HOST=${1:-hrafnkell@192.168.1.91}
-DIR=${2:-srv/discyboi}
+[ -f ../.env ] && . ../.env
+HOST=${1:-${DEPLOY_HOST:-}}
+DIR=${2:-${DEPLOY_DIR:-srv/discyboi}}
 BIN=build/app/zephyr/zephyr.signed.bin
 HEX=build/merged.hex
 die() { echo "release: $*" >&2; exit 1; }
+[ -n "$HOST" ] || die "no host: set DEPLOY_HOST in .env (see .env.example) or pass user@host"
 
 [ -f "$BIN" ] && [ -f "$HEX" ] || die "no build: run ./build.sh"
 [ "$HEX" -nt "$BIN" ] || [ "$(stat -c %Y "$HEX")" = "$(stat -c %Y "$BIN")" ] || die "$HEX is older than $BIN: run ./build.sh"

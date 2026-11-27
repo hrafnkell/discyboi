@@ -7,6 +7,10 @@ export class HistoryPanel {
   private list: HTMLElement;
   readonly ghosts = new Set<string>();
   selected?: string;
+  /** The card's header, for extra buttons. */
+  readonly head: HTMLElement;
+  /** When the current session began; throws before it are listed under "Earlier". */
+  session?: () => number;
 
   constructor(
     private store: ThrowStore,
@@ -33,7 +37,8 @@ export class HistoryPanel {
         }
       },
     }, 'Clear');
-    this.el = h('section.card.historycard', {}, h('div.cardhead', {}, h('h2', {}, 'Throws'), exportBtn, clearBtn), this.list);
+    this.head = h('div.cardhead', {}, h('h2', {}, 'Throws'), exportBtn, clearBtn);
+    this.el = h('section.card.historycard', {}, this.head, this.list);
     store.onChange = () => this.render();
     this.render();
   }
@@ -45,47 +50,56 @@ export class HistoryPanel {
       this.list.replaceChildren(h('li.empty', {}, 'No throws yet. Press Throw, or connect a disc.'));
       return;
     }
+    const since = this.session?.();
+    const inSession = since === undefined ? items.length : items.findIndex((r) => r.ts < since);
+    const nSession = inSession < 0 ? items.length : inSession;
     this.list.replaceChildren(
-      ...items.map((r) => {
-        const p = r.params;
-        const lat = r.summary.lateral;
-        const ghost = h('input', { type: 'checkbox', title: 'Show path', 'aria-label': 'Show path', checked: this.ghosts.has(r.id) });
-        ghost.addEventListener('change', () => {
-          if (ghost.checked) this.ghosts.add(r.id);
-          else this.ghosts.delete(r.id);
-          this.onGhosts();
-        });
-        const actual = h('input.actual', { type: 'number', min: 0, step: 1, placeholder: 'actual', title: 'Measured distance (m), for calibrating the model', value: r.actualDistance ?? '' });
-        actual.addEventListener('change', () => this.store.update(r.id, { actualDistance: actual.value === '' ? undefined : Number(actual.value) }));
-        const del = h('button.x', { type: 'button', title: 'Delete', 'aria-label': 'Delete throw', onclick: (e: Event) => {
-          e.stopPropagation();
-          this.ghosts.delete(r.id);
-          this.store.remove(r.id);
-          this.onGhosts();
-        } }, '×');
-        const li = h(
-          'li',
-          { class: r.id === this.selected ? 'sel' : undefined, onclick: (e: Event) => {
-            if ((e.target as HTMLElement).closest('input,button')) return;
-            this.selected = r.id;
-            this.onReplay(r);
-            this.render();
-          } },
-          h('span.swatch', { style: `background:${r.disc.color}` }),
-          h('div.main', {},
-            h('div.top', {},
-              h('b', {}, fmtDist(r.summary.distance, units)),
-              h('span.lat', {}, Math.abs(lat) < 1 ? 'centre' : `${fmtDist(Math.abs(lat), units)} ${lat > 0 ? 'L' : 'R'}`),
-              r.source === 'disc' ? h('span.tag', { title: r.anglesEstimated ? 'From the disc (angles estimated)' : 'From the disc' }, r.anglesEstimated ? 'disc*' : 'disc') : null,
-            ),
-            h('div.sub', {}, `${r.disc.name} · ${fmtSpeed(p.speed, units)} · ${Math.round(p.spinRpm)} rpm · hyz ${p.hyzerDeg.toFixed(0)}° · nose ${p.noseDeg.toFixed(0)}° · ${p.hand}H${p.style}`),
-            h('div.sub', {}, new Date(r.ts).toLocaleString()),
-          ),
-          h('div.tools', {}, ghost, actual, del),
-        );
-        return li;
+      ...(since !== undefined ? [h('li.divider', {}, nSession ? `This session · ${nSession} throw${nSession === 1 ? '' : 's'}` : 'No throws this session yet')] : []),
+      ...items.flatMap((r, i) => {
+        const li = this.item(r, units);
+        return since !== undefined && i === nSession ? [h('li.divider', {}, 'Earlier'), li] : [li];
       }),
     );
+  }
+
+  private item(r: ThrowRecord, units: Settings['units']): HTMLElement {
+    const p = r.params;
+    const lat = r.summary.lateral;
+    const ghost = h('input', { type: 'checkbox', title: 'Show path', 'aria-label': 'Show path', checked: this.ghosts.has(r.id) });
+    ghost.addEventListener('change', () => {
+      if (ghost.checked) this.ghosts.add(r.id);
+      else this.ghosts.delete(r.id);
+      this.onGhosts();
+    });
+    const actual = h('input.actual', { type: 'number', min: 0, step: 1, placeholder: 'actual', title: 'Measured distance (m), for calibrating the model', value: r.actualDistance ?? '' });
+    actual.addEventListener('change', () => this.store.update(r.id, { actualDistance: actual.value === '' ? undefined : Number(actual.value) }));
+    const del = h('button.x', { type: 'button', title: 'Delete', 'aria-label': 'Delete throw', onclick: (e: Event) => {
+      e.stopPropagation();
+      this.ghosts.delete(r.id);
+      this.store.remove(r.id);
+      this.onGhosts();
+    } }, '×');
+    const li = h(
+      'li',
+      { class: r.id === this.selected ? 'sel' : undefined, onclick: (e: Event) => {
+        if ((e.target as HTMLElement).closest('input,button')) return;
+        this.selected = r.id;
+        this.onReplay(r);
+        this.render();
+      } },
+      h('span.swatch', { style: `background:${r.disc.color}` }),
+      h('div.main', {},
+        h('div.top', {},
+          h('b', {}, fmtDist(r.summary.distance, units)),
+          h('span.lat', {}, Math.abs(lat) < 1 ? 'centre' : `${fmtDist(Math.abs(lat), units)} ${lat > 0 ? 'L' : 'R'}`),
+          r.source === 'disc' ? h('span.tag', { title: r.anglesEstimated ? 'From the disc (angles estimated)' : 'From the disc' }, r.anglesEstimated ? 'disc*' : 'disc') : null,
+        ),
+        h('div.sub', {}, `${r.disc.name} · ${fmtSpeed(p.speed, units)} · ${Math.round(p.spinRpm)} rpm · hyz ${p.hyzerDeg.toFixed(0)}° · nose ${p.noseDeg.toFixed(0)}° · ${p.hand}H${p.style}`),
+        h('div.sub', {}, new Date(r.ts).toLocaleString()),
+      ),
+      h('div.tools', {}, ghost, actual, del),
+    );
+    return li;
   }
 
   private export() {

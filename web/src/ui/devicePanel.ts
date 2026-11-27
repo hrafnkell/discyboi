@@ -1,4 +1,4 @@
-import { bleSupport, BleDisc, type DiscDevice } from '../ble/device';
+import { bleSupport, BleDisc, rememberedDisc, type DiscDevice } from '../ble/device';
 import { FakeDisc } from '../ble/fake';
 import type { DeviceStatus, ThrowResult } from '../ble/protocol';
 import { compareVersions, parseImage } from '../ble/smp';
@@ -48,8 +48,14 @@ export class DevicePanel {
         this.btn.title = s.reason!;
         this.chip.textContent = 'no Bluetooth';
         this.chip.title = s.reason!;
-      }
+      } else void this.reconnect();
     }
+  }
+
+  /** Coming from the other lab page while connected: connect to the same disc again, no picker. */
+  private async reconnect() {
+    const known = await rememberedDisc();
+    if (known && !this.dev) await this.start(known);
   }
 
   private async toggle() {
@@ -57,6 +63,10 @@ export class DevicePanel {
       this.dev.disconnect();
       return;
     }
+    await this.start();
+  }
+
+  private async start(known?: BluetoothDevice) {
     const dev: DiscDevice = this.fake ? new FakeDisc() : new BleDisc();
     dev.onThrow = (r) => this.onThrow(r);
     dev.onStatus = (s) => {
@@ -75,15 +85,16 @@ export class DevicePanel {
       this.toast('Disc disconnected');
     };
     this.btn.disabled = true;
-    this.chip.textContent = 'connecting…';
+    this.chip.textContent = known ? 'reconnecting…' : 'connecting…';
     try {
-      await dev.connect();
+      await dev.connect(known);
       this.dev = dev;
       this.toast(`Connected to ${dev.name}, firmware ${dev.firmware ?? 'older than 0.2.0 (no version reported)'}`);
       void this.checkForUpdate(dev);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!/cancel/i.test(msg)) this.toast(`Bluetooth: ${msg}`, 'err');
+      if (known) this.toast(`Could not reconnect to the disc (${msg}). Press Connect disc.`, 'err');
+      else if (!/cancel/i.test(msg)) this.toast(`Bluetooth: ${msg}`, 'err');
     } finally {
       this.btn.disabled = false;
       this.render();

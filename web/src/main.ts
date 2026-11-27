@@ -9,9 +9,9 @@ import { ReleasePreview } from './scene/preview';
 import { practiceField, World } from './scene/world';
 import { convertResult } from './sim/convert';
 import { simulate } from './sim/flight';
-import type { DiscSpec, FlightResult } from './sim/types';
+import type { DiscSpec, FlightResult, ThrowParams } from './sim/types';
 import { discThrow } from './store/record';
-import { loadSettings, saveSettings, summarize, ThrowStore, type ThrowRecord } from './store/throws';
+import { loadSettings, saveSettings, sessionStart, setSessionStart, summarize, ThrowStore, type ThrowRecord } from './store/throws';
 import { AccountPanel } from './ui/accountPanel';
 import { DevicePanel } from './ui/devicePanel';
 import { DiscPicker } from './ui/discPicker';
@@ -72,6 +72,27 @@ panel.previewSlot.append(preview.el);
 
 const ghostCache = new Map<string, FlightResult>();
 const history = new HistoryPanel(store, () => settings, (r) => replay(r), () => refreshGhosts());
+history.session = sessionStart;
+// Throws arriving from elsewhere (the account's other devices) join the session traces too.
+{
+  const render = store.onChange;
+  store.onChange = (kind) => {
+    render?.(kind);
+    if (settings.sessionTraces) refreshGhosts();
+  };
+}
+
+/** Starts a new practice session: shared with the throws page and, signed in, the account's other devices. */
+function newSession(t = Date.now(), share = true) {
+  setSessionStart(t);
+  if (share) store.setPrefs({ sessionStart: t });
+  history.render();
+  refreshGhosts();
+}
+history.head.append(h('button.ghostbtn', { type: 'button', title: 'Only count throws from now on', onclick: () => {
+  newSession();
+  toast('New session started');
+} }, 'New session'));
 
 const device = new DevicePanel(fake, (r) => onDiscThrow(r), toast);
 const account = new AccountPanel(store, toast);
@@ -89,12 +110,16 @@ function setUnits(u: Units, share: boolean) {
   view.refreshLabel();
   world.setUnits(u);
   history.render();
+  if (view.current) showThrowLine(panel.current());
   panel.refreshUnits();
   basket.refresh();
 }
 const unitsSeg = segmented<Units>(UNIT_OPTIONS, settings.units, (u) => setUnits(u, true));
 // Signed in, units are an account setting: a change on another device (or the stored one at sign-in) applies here.
-store.onPrefs = (p) => p.units && p.units !== settings.units && setUnits(p.units, false);
+store.onPrefs = (p) => {
+  if (p.units && p.units !== settings.units) setUnits(p.units, false);
+  if (p.sessionStart !== undefined && p.sessionStart !== sessionStart()) newSession(p.sessionStart, false);
+};
 const mountSeg = segmented<'faceUp' | 'faceDown'>(
   [{ id: 'faceUp', label: 'Face up', title: 'Board top faces the top of the disc' }, { id: 'faceDown', label: 'Face down', title: 'Board top faces the bottom of the disc' }],
   settings.mount,
@@ -112,8 +137,18 @@ const basket = slider({
     world.setHole(hole());
   },
 });
+const tracesSeg = segmented<'off' | 'on'>(
+  [{ id: 'off', label: 'Off' }, { id: 'on', label: 'On', title: 'Draw the path of every throw since New session' }],
+  settings.sessionTraces ? 'on' : 'off',
+  (v) => {
+    settings.sessionTraces = v === 'on';
+    saveSettings(settings);
+    refreshGhosts();
+  },
+);
 const settingsCard = section('Settings',
   h('div.setrow', {}, h('span', {}, 'Units'), unitsSeg.el),
+  h('div.setrow', {}, h('span', { title: 'Every throw since New session, drawn faintly behind the current one' }, 'Session traces'), tracesSeg.el),
   h('div.setrow', {}, h('span', {}, 'Board mount'), mountSeg.el),
   basket.el,
 );
@@ -129,6 +164,19 @@ scrub.addEventListener('input', () => {
 const rateSel = h('select.rate', { 'aria-label': 'Playback speed', onchange: () => (view.rate = Number(rateSel.value)) },
   ...[0.25, 0.5, 1, 2].map((r) => h('option', { value: r, selected: r === 1 }, `${r}×`)));
 const playbar = h('div.playbar', {}, playBtn, scrub, rateSel);
+// The throw's own numbers, for when the throw panel is out of the way (always, on a phone).
+const throwLine = h('div.throwline', { 'aria-live': 'polite' });
+function showThrowLine(p: ThrowParams) {
+  const cell = (v: string, k: string) => h('span', {}, h('b', {}, v), ` ${k}`);
+  throwLine.replaceChildren(
+    cell(fmtSpeed(p.speed, settings.units), ''),
+    cell(`${Math.round(p.spinRpm)}`, 'rpm'),
+    cell(`${p.hyzerDeg >= 0 ? '' : '−'}${Math.abs(p.hyzerDeg).toFixed(0)}°`, p.hyzerDeg >= 0 ? 'hyzer' : 'anhyzer'),
+    cell(`${p.noseDeg >= 0 ? '+' : '−'}${Math.abs(p.noseDeg).toFixed(0)}°`, 'nose'),
+    cell(`${p.launchDeg.toFixed(0)}°`, 'launch'),
+    h('span.style', {}, `${p.hand}H${p.style}`),
+  );
+}
 
 const leftToggle = h('button.paneltoggle.left', { type: 'button', 'aria-label': 'Toggle throw panel', onclick: () => document.body.classList.toggle('hide-left') }, '☰');
 const rightToggle = h('button.paneltoggle.right', { type: 'button', 'aria-label': 'Toggle history', onclick: () => document.body.classList.toggle('hide-right') }, '⟲');
@@ -138,16 +186,19 @@ document.body.append(
     h('a.ghostbtn.navlink', { href: `./throws.html${fake ? '?fake=1' : ''}`, title: 'Throw history, stats and compare' }, 'Throws →'), camSeg.el, device.el, account.el, rightToggle),
   h('aside.panel.leftpanel', {}, picker.el, panel.el),
   h('aside.panel.rightpanel', {}, history.el, settingsCard),
-  h('div.bottom', {}, stats.el, playbar),
+  h('div.bottom', {}, throwLine, stats.el, playbar),
   toasts,
 );
 if (innerWidth < 900) document.body.classList.add('hide-right');
+// On a phone the throw panel covers the view: start with it closed (the numbers strip shows the throw).
+if (innerWidth <= 760) document.body.classList.add('hide-left');
 
 // ---------------------------------------------------------------- actions
-function play(flight: FlightResult, disc: DiscSpec) {
+function play(flight: FlightResult, disc: DiscSpec, params: ThrowParams = panel.current()) {
   view.load(flight, disc);
   rig.reset();
   stats.show(flight, settings.units);
+  showThrowLine(params);
 }
 
 function record(disc: DiscSpec, flight: FlightResult, extra: Partial<ThrowRecord> & { source: ThrowRecord['source'] }) {
@@ -155,6 +206,7 @@ function record(disc: DiscSpec, flight: FlightResult, extra: Partial<ThrowRecord
   history.selected = rec.id;
   ghostCache.set(rec.id, flight);
   history.render();
+  if (settings.sessionTraces) refreshGhosts();
 }
 
 function doThrow() {
@@ -186,6 +238,7 @@ function onDiscThrow(r: ThrowResult) {
   const flight = simulate(params, disc);
   play(flight, disc);
   record(disc, flight, { source: 'disc', params, raw: r, anglesEstimated: !c.anglesValid });
+  if (innerWidth <= 760) document.body.classList.add('hide-left'); // show the flight on phones
   const note = !c.anglesValid ? ' (no still moment: angles estimated)' : r.flags & FLAG_REF_APPROX ? ' (disc not held still: approximate)' : '';
   toast(`Throw #${r.throwId}: ${styleName(c.params.style)}, ${fmtSpeed(c.params.speed, settings.units)}, ${Math.round(c.params.spinRpm)} rpm${note}`);
 }
@@ -199,14 +252,29 @@ function replay(r: ThrowRecord) {
   updatePreview();
   const flight = ghostCache.get(r.id) ?? simulate(r.params, r.disc);
   ghostCache.set(r.id, flight);
-  play(flight, r.disc);
+  play(flight, r.disc, r.params);
+  if (settings.sessionTraces) refreshGhosts(); // the replayed throw is drawn in full, not as a trace
 }
 
+/** Most session traces drawn at once; older ones are left out. */
+const MAX_TRACES = 60;
+
 function refreshGhosts() {
+  const ids = new Set(history.ghosts);
+  if (settings.sessionTraces) {
+    const since = sessionStart();
+    let n = 0;
+    for (const r of store.all()) {
+      if (r.ts < since || n >= MAX_TRACES) break; // newest first
+      if (r.noSim || r.id === history.selected) continue;
+      ids.add(r.id);
+      n++;
+    }
+  }
   const list: { flight: FlightResult; color: string }[] = [];
-  for (const id of history.ghosts) {
+  for (const id of ids) {
     const r = store.get(id);
-    if (!r) continue;
+    if (!r || r.noSim) continue;
     let f = ghostCache.get(id);
     if (!f) ghostCache.set(id, (f = simulate(r.params, r.disc)));
     list.push({ flight: f, color: r.disc.color });
@@ -278,6 +346,7 @@ updatePreview();
   const f = simulate(panel.current(), disc);
   play(f, disc);
   view.playing = false;
+  refreshGhosts();
 }
 // Opened from the throws page with ?throw=<id>: replay it.
 {

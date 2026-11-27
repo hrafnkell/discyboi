@@ -28,6 +28,8 @@ export interface Settings {
   mount: Mount;
   units: Units;
   basketDist: number;
+  /** Flight lab: draw the path of every throw in the current session. */
+  sessionTraces: boolean;
 }
 
 const KEY = 'discyboi.throws.v1';
@@ -355,7 +357,20 @@ export class ThrowStore {
   }
 }
 
-export const DEFAULT_SETTINGS: Settings = { hand: 'R', mount: 'faceUp', units: 'metric', basketDist: 100 };
+export const DEFAULT_SETTINGS: Settings = { hand: 'R', mount: 'faceUp', units: 'metric', basketDist: 100, sessionTraces: false };
+
+// The practice session's start lives with the throws page's view state; both pages read and set it.
+const SESSION_KEY = 'discyboi.historyui.v1';
+
+/** When the current session began (ms). Default: the last three hours. */
+export function sessionStart(): number {
+  const v = read<{ sessionStart?: number }>(SESSION_KEY, {}).sessionStart;
+  return typeof v === 'number' ? v : Date.now() - 3 * 3600e3;
+}
+
+export function setSessionStart(t: number) {
+  write(SESSION_KEY, { ...read<Record<string, unknown>>(SESSION_KEY, {}), sessionStart: t });
+}
 
 export function loadSettings(): Settings {
   const s = { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(SETTINGS_KEY, {}) };

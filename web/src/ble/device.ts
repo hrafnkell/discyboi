@@ -25,7 +25,8 @@ export interface DiscDevice {
   readonly name: string;
   /** Firmware version, once connected. Undefined on firmware too old to report one. */
   readonly firmware?: string;
-  connect(): Promise<void>;
+  /** Asks the user to pick a disc, or connects to `known` (a disc this site may already use). */
+  connect(known?: BluetoothDevice): Promise<void>;
   disconnect(): void;
   identify(): Promise<void>;
   /** Downloads the raw sensor recording of the latest throw (see CaptureAssembler for the format). */
@@ -40,6 +41,54 @@ export interface DiscDevice {
   onStatus?: (s: DeviceStatus) => void;
   onBattery?: (percent: number) => void;
   onDisconnect?: () => void;
+}
+
+/** The disc this tab is connected to, so the next page can reconnect without the picker. */
+const LAST_KEY = 'discyboi.lastDisc';
+
+type BluetoothWithDevices = Bluetooth & { getDevices?: () => Promise<BluetoothDevice[]> };
+type WatchableDevice = BluetoothDevice & { watchAdvertisements?: (o?: { signal?: AbortSignal }) => Promise<void> };
+
+/**
+ * The disc this tab was connected to before the page changed, if the browser lets the site reach
+ * it again without the picker (navigator.bluetooth.getDevices; not every browser has it).
+ */
+export async function rememberedDisc(): Promise<BluetoothDevice | undefined> {
+  let id: string | null = null;
+  try {
+    id = sessionStorage.getItem(LAST_KEY);
+  } catch {
+    return undefined;
+  }
+  const bt = navigator.bluetooth as BluetoothWithDevices | undefined;
+  if (!id || !bt?.getDevices) return undefined;
+  try {
+    return (await bt.getDevices()).find((d) => d.id === id);
+  } catch {
+    return undefined;
+  }
+}
+
+const remember = (id: string | null) => {
+  try {
+    if (id) sessionStorage.setItem(LAST_KEY, id);
+    else sessionStorage.removeItem(LAST_KEY);
+  } catch {
+    /* storage blocked: no reconnect on the next page */
+  }
+};
+
+/** Waits (up to ms) until the disc is heard advertising; browsers want that before a picker-less connect. */
+async function waitForAdvert(device: WatchableDevice, ms: number) {
+  if (!device.watchAdvertisements) return;
+  const ctl = new AbortController();
+  try {
+    const heard = new Promise<void>((r) => device.addEventListener('advertisementreceived', () => r(), { once: true }));
+    await device.watchAdvertisements({ signal: ctl.signal });
+    await Promise.race([heard, sleep(ms).then(() => Promise.reject(new Error('The disc is not advertising: is it on and close by?')))]);
+  } finally {
+    ctl.abort();
+  }
 }
 
 export function bleSupport(): { ok: boolean; reason?: string } {
@@ -66,11 +115,14 @@ export class BleDisc implements DiscDevice {
   /** Anonymous board id for the board count (firmware 0.4.2+). */
   private boardId?: string;
 
-  async connect() {
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: DEVICE_NAME }, { services: [SERVICE_UUID] }],
-      optionalServices: [SERVICE_UUID, 'battery_service', SMP_SERVICE_UUID],
-    });
+  async connect(known?: BluetoothDevice) {
+    const device =
+      known ??
+      (await navigator.bluetooth.requestDevice({
+        filters: [{ name: DEVICE_NAME }, { services: [SERVICE_UUID] }],
+        optionalServices: [SERVICE_UUID, 'battery_service', SMP_SERVICE_UUID],
+      }));
+    if (known) await waitForAdvert(known, 10000);
     this.device = device;
     this.name = device.name ?? DEVICE_NAME;
     device.addEventListener('gattserverdisconnected', () => {
@@ -79,6 +131,7 @@ export class BleDisc implements DiscDevice {
       if (!this.updating && !this.retrying) this.onDisconnect?.();
     });
     await this.setupWithRetry(device);
+    remember(device.id);
   }
 
   /**
@@ -176,6 +229,7 @@ export class BleDisc implements DiscDevice {
   }
 
   disconnect() {
+    remember(null); // chosen: don't reconnect on the next page
     this.device?.gatt?.disconnect();
   }
 
